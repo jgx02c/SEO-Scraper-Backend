@@ -22,13 +22,13 @@ async def add_company_endpoint():
 async def get_companies_endpoint():
     return await getCompanies()
 
-@router.get("/get-company", tags=["company"])
-async def get_company_endpoint():
-    return await getCompany()
+@router.get("/get-company/{company_id}", tags=["company"])
+async def get_company_endpoint(company_id: str):
+    return await getCompany(company_id)
 
-@router.delete("/delete-company", tags=["company"])
-async def delete_company_endpoint():
-    return await deleteCompany()
+@router.delete("/delete-company/{company_id}", tags=["company"])
+async def delete_company_endpoint(company_id: str):
+    return await deleteCompany(company_id)
 
 @router.get("/get-user", tags=["users"])
 async def get_user_endpoint():
