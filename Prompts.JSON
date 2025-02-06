@@ -1,0 +1,81 @@
+{
+    "1": {
+        "prompt": "Generate a list of 5 popular technology news websites. Return as a JSON array of objects with 'url' and 'name' fields.",
+        "continuation_prompt": 2,
+        "iterate_array": false,
+        "store_mongodb": false,
+        "store_pinecone": false,
+        "metadata_structure": {
+            "type": "website_list",
+            "timestamp": "auto",
+            "category": "tech_news"
+        },
+        "description": "Initial prompt to get list of websites"
+    },
+    "2": {
+        "prompt": "For each website in {previous_results}, determine its main focus area. Return JSON objects with: 'url', 'name', 'focus_area', 'topic_keywords' (array of 5 keywords).",
+        "continuation_prompt": 3,
+        "iterate_array": false,
+        "store_mongodb": true,
+        "store_pinecone": false,
+        "metadata_structure": {
+            "type": "website_categories",
+            "timestamp": "auto",
+            "searchable_fields": ["focus_area", "topic_keywords"],
+            "source": "gpt_analysis"
+        },
+        "description": "Categorize each website"
+    },
+    "3": {
+        "prompt": "Analyze website #{index}: {item.url}. Return a detailed JSON object with: 1) content_summary, 2) key_topics (array), 3) audience_demographics, 4) content_quality_score (1-10), 5) writing_style_description.",
+        "continuation_prompt": 4,
+        "iterate_array": true,
+        "store_mongodb": true,
+        "store_pinecone": true,
+        "metadata_structure": {
+            "type": "website_analysis",
+            "timestamp": "auto",
+            "url": "{item.url}",
+            "name": "{item.name}",
+            "focus_area": "{item.focus_area}",
+            "keywords": "{item.topic_keywords}",
+            "chunk_type": "full_analysis",
+            "score": "content_quality_score",
+            "embedding_fields": ["content_summary", "key_topics"],
+            "namespace": "tech_websites"
+        },
+        "description": "Detailed analysis of each site"
+    },
+    "4": {
+        "prompt": "Based on the analyses in {previous_results}, identify content gaps and opportunities. Return a JSON object with: 1) underserved_topics, 2) emerging_trends, 3) audience_gaps, 4) market_opportunities.",
+        "continuation_prompt": 5,
+        "iterate_array": false,
+        "store_mongodb": true,
+        "store_pinecone": true,
+        "metadata_structure": {
+            "type": "market_analysis",
+            "timestamp": "auto",
+            "analysis_type": "gap_analysis",
+            "data_sources": "previous_analyses",
+            "embedding_fields": ["underserved_topics", "emerging_trends"],
+            "namespace": "market_insights"
+        },
+        "description": "Gap analysis based on all previous data"
+    },
+    "5": {
+        "prompt": "Create a content strategy proposal. Use gaps from {previous_results}. Return JSON with: 1) focus_areas, 2) target_audience, 3) content_types, 4) competitive_advantages, 5) implementation_steps.",
+        "continuation_prompt": null,
+        "iterate_array": false,
+        "store_mongodb": true,
+        "store_pinecone": true,
+        "metadata_structure": {
+            "type": "strategy_proposal",
+            "timestamp": "auto",
+            "proposal_type": "content_strategy",
+            "based_on": "gap_analysis",
+            "embedding_fields": ["focus_areas", "implementation_steps"],
+            "namespace": "strategies"
+        },
+        "description": "Final strategy recommendation"
+    }
+}
