@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, WebSocket
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
-from ..services.insight_generator import generate_insight_prompt  # Assuming this is where you have the function
+from ..services.rag_service import generate_insight_prompt  # Assuming this is where you have the function
 from fastapi import WebSocket, WebSocketDisconnect
 
 router = APIRouter()
