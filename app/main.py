@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import user, data
+from app.routers import user
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -15,7 +15,6 @@ app.add_middleware(
 
 # Include routers without any middleware restrictions
 app.include_router(user.router, prefix="/users", tags=["users"])
-app.include_router(data.router, prefix="/data", tags=["data"])
 
 @app.get("/main")
 def read_root():
