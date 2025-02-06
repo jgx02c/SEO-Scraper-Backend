@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from fastapi import WebSocket
 from ..controllers.chatData import chatData
 from ..controllers.addCompany import addCompany
 from ..controllers.getCompanies import getCompanies
@@ -10,13 +11,18 @@ from ..controllers.savePrompts import savePrompts
 
 router = APIRouter()
 
-@router.get("/chat-data", tags=["chat"])
-async def chat_data_endpoint():
-    return await chatData()
+# Define the endpoint for chat data
+@router.post("/chat-data", tags=["chat"])
+async def chat_data_endpoint(chat_message: str, websocket: WebSocket):
+    # Directly call the chatData function from the controller
+    result = await chatData(chat_message, websocket)
+    return result
 
 @router.post("/add-company", tags=["company"])
-async def add_company_endpoint():
-    return await addCompany()
+async def add_company_endpoint(company_data: dict):
+    # Call the addCompany controller function and pass the company data
+    result = await addCompany(company_data)
+    return result
 
 @router.get("/get-companies", tags=["company"])
 async def get_companies_endpoint():

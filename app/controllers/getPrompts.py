@@ -4,7 +4,7 @@ from fastapi import HTTPException
 # Assuming your collection is called "prompts"
 db_collection = get_collection("prompts")
 
-async def getAllPrompts():
+async def getPrompts():
     try:
         # Retrieve all prompts from the collection
         prompts = await db_collection.find().to_list(length=None)  # None means no limit
