@@ -1,67 +1,27 @@
 from ..db.mongoConnect import get_collection
-from bson import ObjectId
 from fastapi import HTTPException
+from bson.objectid import ObjectId
 
-collection = get_collection("users") ## wrong collection here too
+db_collection = get_collection("prompts")
 
-
-async def get_users(): 
-    print("Trying to get users")  
-    users = []
-    async for user in collection.find(): 
-        users.append(user)
-    if users:
-        print("Obtained users!")
-        return users
-    
-    print("Failed to get users!")
-    raise HTTPException(status_code=500, detail="Failed to get users")
-
-
-
-async def create_user(user_data: dict): 
-    print("Trying to create user") 
-    user_data["_id"] = str(ObjectId())  # Generate unique ID
-    result = await collection.insert_one(user_data)# stops around here
-    
-    if result.inserted_id:
-        print("Created user!")
-        return {**user_data, "_id": str(result.inserted_id)}
-    
-    print("Failed to create user!")
-    return None 
-
-async def edit_user(user_data: dict): 
-    print("Trying to edit user")  
-    result = await collection.find_one_and_update(user_data)# stops around here
-    
-    if result:
-        print("Edited user!")
-        return {**user_data}
-    
-    print("Failed to create user!")
-    return None 
-
-async def delete_user(user_data: dict): 
-    print("Trying to delete user")  
-    print("Received user_data:", user_data)  # Debugging
-
-    if "_id" not in user_data:
-        print("No _id provided!")
-        raise HTTPException(status_code=400, detail="User ID is required")
-
+async def savePrompts(updated_prompts: dict):
     try:
-        object_id = ObjectId(user_data["_id"])  # Convert to ObjectId
-    except Exception:
-        print("Invalid ID format!")
-        raise HTTPException(status_code=400, detail="Invalid user ID format")
+        # Assuming there's only one document in the collection, fetch the first one
+        existing_prompts = await db_collection.find_one({})
+        
+        if not existing_prompts:
+            raise HTTPException(status_code=404, detail="Prompts document not found")
 
-    result = await collection.delete_one({"_id": user_data["_id"]})  
-    print("Delete result:", result) 
-    
-    if result.deleted_count > 0:
-        print("Deleted user!")
-        return {"message": "User deleted successfully"}
-    
-    print("Failed to delete user!")
-    raise HTTPException(status_code=404, detail="No matching user found")
+        # Replace the existing document with the updated one
+        result = await db_collection.replace_one(
+            {"_id": existing_prompts["_id"]},  # Filter by the existing document's _id
+            updated_prompts,  # The new document data
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=500, detail="Failed to update prompts")
+
+        return {"message": "Prompts updated successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating prompts: {str(e)}")
