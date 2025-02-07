@@ -5,7 +5,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.schema import Document
 
 # Initialize Pinecone (make sure you've done this once in your script)
-pinecone.init(api_key="your-pinecone-api-key", environment="us-west1-gcp")
+pinecone.init(api_key="6d324250-d2de-411e-9bbe-31986b58d074", environment="us-west1-gcp")
 
 # Initialize the OpenAI embeddings model
 embeddings = OpenAIEmbeddings()
