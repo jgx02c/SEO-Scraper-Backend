@@ -1,9 +1,9 @@
-import openai
-import json
 import os
+import json
 from typing import Dict, Any
 from datetime import datetime
 from pymongo import MongoClient
+import requests
 
 # MongoDB connection setup
 mongo_uri = os.getenv('mongo_uri')
@@ -11,7 +11,34 @@ client = MongoClient(mongo_uri)
 db = client['Cluster07388']
 company_collection = db['company']
 
-openai.api_key = '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'
+# Perplexity API setup
+PERPLEXITY_API_KEY = os.getenv('PERPLEXITY_API_KEY')
+PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
+
+def get_sonar_response(prompt: str, website_url: str) -> str:
+    """Get response from Perplexity Sonar API"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": "sonar-medium-online",  # or sonar-small-online or sonar-large-online based on your needs
+            "messages": [
+                {"role": "system", "content": f"You are analyzing the website: {website_url}"},
+                {"role": "user", "content": prompt}
+            ]
+        }
+        
+        response = requests.post(PERPLEXITY_API_URL, headers=headers, json=data)
+        response.raise_for_status()
+        
+        result = response.json()
+        return result['choices'][0]['message']['content'].strip()
+    except Exception as e:
+        print(f"Error getting Sonar response for {website_url}: {str(e)}")
+        return ""
 
 def load_prompts() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
     """Load prompts from JSON file"""
@@ -32,29 +59,12 @@ def load_prompts() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         print(f"Error loading prompts: {str(e)}")
         raise
 
-def get_gpt_response(prompt: str, website_url: str) -> str:
-    """Get response from OpenAI API"""
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": f"You are analyzing the website: {website_url}"},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=2000
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"Error getting GPT response for {website_url}: {str(e)}")
-        return ""
-
 def get_website_pages(website_url: str) -> list:
     """Get all pages from a website"""
     prompt = """List all the product or service pages on this website. 
     Return only the URLs, one per line, with no additional text or formatting."""
     
-    response = get_gpt_response(prompt, website_url)
+    response = get_sonar_response(prompt, website_url)
     pages = [page.strip() for page in response.split('\n') if page.strip()]
     return pages
 
@@ -62,11 +72,9 @@ def update_database_with_response(website_url: str, section_type: str, section_u
                                 label: str, response: str, prompt_number: str):
     """Update database with individual prompt response"""
     try:
-        # Construct the update path based on section type
         section_key = "overview" if section_type == "overview" else f"page_{section_url}"
         update_path = f"sections.{section_key}.data.{label}"
         
-        # Update document with new response
         company_collection.update_one(
             {"url": website_url},
             {
@@ -91,8 +99,6 @@ def process_prompts_for_target(prompts: Dict[str, Dict[str, Dict[str, str]]],
                              prompt_type: str) -> Dict[str, Any]:
     """Process numbered prompts for a given URL and update database in real-time"""
     results = {}
-    
-    # Get the specific prompt type (overview_prompts or page_prompts)
     type_prompts = prompts[prompt_type]
     section_type = "overview" if prompt_type == "overview_prompts" else "page"
     
@@ -108,14 +114,12 @@ def process_prompts_for_target(prompts: Dict[str, Dict[str, Dict[str, str]]],
         upsert=True
     )
     
-    # Process each numbered prompt and update database immediately
     for prompt_num in type_prompts:
         prompt_data = type_prompts[prompt_num]
         print(f"Processing {prompt_type} - {prompt_data['label']} for {target_url}")
         
-        response = get_gpt_response(prompt_data["prompt"], target_url)
+        response = get_sonar_response(prompt_data["prompt"], target_url)
         
-        # Update database immediately after getting response
         update_database_with_response(
             website_url=website_url,
             section_type=section_type,
@@ -148,11 +152,11 @@ def process_website(website_url: str, is_main: bool, prompts: Dict) -> None:
 def main():
     # Load configuration
     prompts = load_prompts()
-    global main_website  # Make main_website accessible in update_database_with_response
+    global main_website
     main_website = "https://leapsandrebounds.com/"
     websites = [
-        "https://www.bellicon.com/",
-        "https://www.jumpsport.com/",
+        "https://www.bellicon.com",
+        "https://www.jumpsport.com",
         "https://www.boogiebounce.com/",
         "https://www.decathlon.com/products/fit-trampo-500-fitness-trampoline",
         "https://www.amazon.com/Kanchimi-Folding-Fitness-Trampoline-Handlebar/dp/B07Y5Y5Y5Y",
