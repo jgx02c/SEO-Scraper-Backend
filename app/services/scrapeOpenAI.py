@@ -22,26 +22,14 @@ def load_prompts() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
         with open(prompts_path, 'r') as file:
             prompts = json.load(file)
             
-        # Debug print
-        print("Loaded prompts structure:")
-        print(json.dumps(prompts, indent=2))
-        
-        # Validate prompt structure
         if "overview_prompts" not in prompts:
             raise KeyError("Missing 'overview_prompts' in prompts.json")
         if "page_prompts" not in prompts:
             raise KeyError("Missing 'page_prompts' in prompts.json")
             
         return prompts
-    except FileNotFoundError:
-        print(f"Could not find prompts.json at: {prompts_path}")
-        print(f"Current working directory: {os.getcwd()}")
-        raise
-    except json.JSONDecodeError as e:
-        print(f"Error parsing prompts.json: {str(e)}")
-        raise
     except Exception as e:
-        print(f"Unexpected error loading prompts: {str(e)}")
+        print(f"Error loading prompts: {str(e)}")
         raise
 
 def get_gpt_response(prompt: str, website_url: str) -> str:
@@ -70,104 +58,119 @@ def get_website_pages(website_url: str) -> list:
     pages = [page.strip() for page in response.split('\n') if page.strip()]
     return pages
 
-def process_prompts_for_target(prompts: Dict[str, Dict[str, Dict[str, str]]], 
-                             target_url: str, 
-                             prompt_type: str) -> Dict[str, Any]:
-    """Process numbered prompts for a given URL"""
+def update_database_with_response(website_url: str, section_type: str, section_url: str, 
+                                label: str, response: str, prompt_number: str):
+    """Update database with individual prompt response"""
     try:
-        results = {}
+        # Construct the update path based on section type
+        section_key = "overview" if section_type == "overview" else f"page_{section_url}"
+        update_path = f"sections.{section_key}.data.{label}"
         
-        # Debug print
-        print(f"\nProcessing {prompt_type} for {target_url}")
-        print(f"Available prompt types: {list(prompts.keys())}")
-        
-        # Get the specific prompt type (overview_prompts or page_prompts)
-        if prompt_type not in prompts:
-            raise KeyError(f"Prompt type '{prompt_type}' not found in prompts")
-            
-        type_prompts = prompts[prompt_type]
-        
-        # Debug print
-        print(f"Found {len(type_prompts)} prompts for {prompt_type}")
-        
-        # Process each numbered prompt
-        for prompt_num in type_prompts:
-            prompt_data = type_prompts[prompt_num]
-            print(f"Processing prompt {prompt_num}: {prompt_data['label']}")
-            
-            response = get_gpt_response(prompt_data["prompt"], target_url)
-            results[prompt_data["label"]] = {
-                "response": response,
-                "prompt_number": prompt_num,
-                "timestamp": datetime.utcnow()
-            }
-        
-        return results
+        # Update document with new response
+        company_collection.update_one(
+            {"url": website_url},
+            {
+                "$set": {
+                    update_path: {
+                        "response": response,
+                        "prompt_number": prompt_number,
+                        "timestamp": datetime.utcnow()
+                    },
+                    "last_updated": datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
+        print(f"Updated {website_url} - {section_type} - {label}")
     except Exception as e:
-        print(f"Error processing prompts for {target_url}: {str(e)}")
-        raise
+        print(f"Error updating database: {str(e)}")
 
-def process_website(website_url: str, is_main: bool, prompts: Dict) -> Dict[str, Any]:
-    """Process a single website and return its analysis data"""
-    # Create base document structure
-    website_data = {
-        "url": website_url,
-        "is_main": is_main,
-        "created_at": datetime.utcnow(),
-        "last_updated": datetime.utcnow(),
-        "sections": {
-            "overview": {
-                "data": process_prompts_for_target(prompts, website_url, "overview_prompts"),
-                "url": website_url,
-                "type": "overview"
+def process_prompts_for_target(prompts: Dict[str, Dict[str, Dict[str, str]]], 
+                             website_url: str, 
+                             target_url: str,
+                             prompt_type: str) -> Dict[str, Any]:
+    """Process numbered prompts for a given URL and update database in real-time"""
+    results = {}
+    
+    # Get the specific prompt type (overview_prompts or page_prompts)
+    type_prompts = prompts[prompt_type]
+    section_type = "overview" if prompt_type == "overview_prompts" else "page"
+    
+    # Initialize document in database if it doesn't exist
+    company_collection.update_one(
+        {"url": website_url},
+        {
+            "$setOnInsert": {
+                "created_at": datetime.utcnow(),
+                "is_main": website_url == main_website
             }
-        }
-    }
+        },
+        upsert=True
+    )
     
-    # Get and process all pages
+    # Process each numbered prompt and update database immediately
+    for prompt_num in type_prompts:
+        prompt_data = type_prompts[prompt_num]
+        print(f"Processing {prompt_type} - {prompt_data['label']} for {target_url}")
+        
+        response = get_gpt_response(prompt_data["prompt"], target_url)
+        
+        # Update database immediately after getting response
+        update_database_with_response(
+            website_url=website_url,
+            section_type=section_type,
+            section_url=target_url if section_type == "page" else "",
+            label=prompt_data["label"],
+            response=response,
+            prompt_number=prompt_num
+        )
+        
+        results[prompt_data["label"]] = {
+            "response": response,
+            "prompt_number": prompt_num,
+            "timestamp": datetime.utcnow()
+        }
+    
+    return results
+
+def process_website(website_url: str, is_main: bool, prompts: Dict) -> None:
+    """Process a single website and update database in real-time"""
+    print(f"Processing overview for {website_url}")
+    process_prompts_for_target(prompts, website_url, website_url, "overview_prompts")
+    
+    print(f"Getting pages for {website_url}")
     pages = get_website_pages(website_url)
-    for idx, page in enumerate(pages, 1):
-        section_key = f"page_{idx}"
-        website_data["sections"][section_key] = {
-            "data": process_prompts_for_target(prompts, page, "page_prompts"),
-            "url": page,
-            "type": "page"
-        }
     
-    return website_data
+    for page in pages:
+        print(f"Processing page: {page}")
+        process_prompts_for_target(prompts, website_url, page, "page_prompts")
 
 def main():
     # Load configuration
     prompts = load_prompts()
+    global main_website  # Make main_website accessible in update_database_with_response
     main_website = "https://leapsandrebounds.com/"
     websites = [
-        "https://www.bellicon.com",
-        "https://www.jumpsport.com",
-        # ... rest of your websites list
+        "https://www.bellicon.com/",
+        "https://www.jumpsport.com/",
+        "https://www.boogiebounce.com/",
+        "https://www.decathlon.com/products/fit-trampo-500-fitness-trampoline",
+        "https://www.amazon.com/Kanchimi-Folding-Fitness-Trampoline-Handlebar/dp/B07Y5Y5Y5Y",
+        "https://www.bouncefitness.com.au/",
+        "https://www.reboundfitness.com.au/",
+        "https://www.argos.co.uk/product/12345678",
+        "https://www.networldsports.com/forza-mini-exercise-trampoline.html",
+        "https://www.bouncefitness.com.au/"
     ]
 
     # Process main website
     print(f"Processing main website: {main_website}")
-    main_website_data = process_website(main_website, True, prompts)
-    
-    # Save or update main website data
-    company_collection.update_one(
-        {"url": main_website},
-        {"$set": main_website_data},
-        upsert=True
-    )
+    process_website(main_website, True, prompts)
 
     # Process competitor websites
     for website in websites:
         print(f"Processing competitor website: {website}")
-        competitor_data = process_website(website, False, prompts)
-        
-        # Save or update competitor data
-        company_collection.update_one(
-            {"url": website},
-            {"$set": competitor_data},
-            upsert=True
-        )
+        process_website(website, False, prompts)
 
 if __name__ == "__main__":
     main()
