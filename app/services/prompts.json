@@ -1,4 +1,27 @@
-  {
+{
+  "overview_prompts": {
+    "1": {
+      "prompt": "Extract key meta information including page title, description, keywords, Open Graph, Twitter Card tags, canonical URL, and viewport settings.",
+      "label": "Page Metadata"
+    },
+    "2": {
+      "prompt": "Evaluate internal and external links, robots meta tags, hreflang attributes, SEO-friendly URLs, and mobile optimization. Include checks for minified resources and page load speed.",
+      "label": "Site Optimization and SEO Elements"
+    },
+    "3": {
+      "prompt": "Extract structured data including JSON-LD, schema.org markup, product data, backlinks, page rank/SEO score, and any broken links.",
+      "label": "Structured Data and Schema"
+    },
+    "4": {
+      "prompt": "Retrieve accessibility information like image alt text, favicon, AMP version, and relevant social sharing tags.",
+      "label": "Content and Social Tags"
+    },
+    "5": {
+      "prompt": "Identify and extract XML sitemap link, robots.txt content, and legal pages (privacy policy, terms of service, disclaimers).",
+      "label": "Legal and Sitemap"
+    }
+  },
+  "page_prompts": {
     "1": {
       "prompt": "What is the page title (<title>) for the current page?",
       "label": "Page Title"
@@ -88,7 +111,7 @@
       "label": "Mobile Optimization"
     },
     "23": {
-      "prompt": "Retrieve the content length header (Content-Length) to get an idea of the page’s size and performance.",
+      "prompt": "Retrieve the content length header (Content-Length) to get an idea of the page's size and performance.",
       "label": "Content Length"
     },
     "24": {
@@ -144,3 +167,4 @@
       "label": "Footer SEO Elements"
     }
   }
+}
