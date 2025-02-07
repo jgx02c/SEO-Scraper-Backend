@@ -11,7 +11,7 @@ pinecone.init(api_key="your-pinecone-api-key", environment="us-west1-gcp")
 embeddings = OpenAIEmbeddings()
 
 # Define the Pinecone index name
-index_name = "your-index-name"
+index_name = "leaps"
 
 # Initialize the Pinecone index and vector store
 index = pinecone.GRPCIndex(index_name)
