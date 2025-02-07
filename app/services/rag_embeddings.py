@@ -65,8 +65,8 @@ def create_embeddings(txt_paths, persist_directory):
     return len(all_documents)
 
 
-    def generate_vectorestore():
-     TXT_PATHS = {
+def generate_vectorestore():
+    TXT_PATHS = {
         "./new_scripts/Witness_Statement_Rachel_Green.txt": "POLICEREPORTRACHELGREEN",
         "./new_scripts/Police_Report_Officer_James_Mitchell.txt": "POLICEREPORTSUMMARY",
         "./new_scripts/Injury_Report_John_Smith.txt": "INJURY",
