@@ -28,16 +28,6 @@ async def rerun_scraper_endpoint():
     result = await rerun_vectorstore()
     return result
 
-# Companies 
-@router.post("/add-company", tags=["company"])
-async def add_company_endpoint(company_data: dict):
-    result = await addCompany(company_data)
-    return result
-
-@router.delete("/delete-company/{company_id}", tags=["company"])
-async def delete_company_endpoint(company_id: str):
-    return await deleteCompany(company_id)
-
 @router.get("/get-companies", tags=["company"])
 async def get_companies_endpoint():
     return await getCompanies()

@@ -1,163 +1,128 @@
 import openai
 import json
-from pymongo import MongoClient
+from typing import Dict, Any
+from datetime import datetime
 
-openai.api_key = 'your-api-key'  # Add your OpenAI API key here
+from ..db.mongoConnect import get_collection
 
-# MongoDB client setup
-client = MongoClient('mongodb://localhost:27017/')  # Connect to MongoDB
-db = client['website_data']  # Database name
-websites_collection = db['websites']  # Collection name
+# Initialize MongoDB collection
+company_collection = get_collection("company")
 
-# Load the prompts JSON from an external file
-with open('prompts.json', 'r') as file:
-    prompts_json = json.load(file)
+openai.api_key = 'your-api-key'
 
-# Accessing page prompts
-page_prompt_5 = prompts_json["page_prompts"]["5"]["prompt"]
-page_label_5 = prompts_json["page_prompts"]["5"]["label"]
+def load_prompts() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
+    """Load prompts from JSON file"""
+    with open('prompts.json', 'r') as file:
+        return json.load(file)
 
-# Accessing overview prompts
-overview_prompt_1 = prompts_json["overview_prompts"]["1"]["prompt"]
-overview_label_1 = prompts_json["overview_prompts"]["1"]["label"]
+def get_gpt_response(prompt: str, website_url: str) -> str:
+    """Get response from OpenAI API"""
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": f"You are analyzing the website: {website_url}"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Error getting GPT response for {website_url}: {str(e)}")
+        return ""
 
-# Example usage of the loaded prompts JSON
-print("Page Prompt 5: ", page_prompt_5)
-print("Page Label 5: ", page_label_5)
-
-print("Overview Prompt 1: ", overview_prompt_1)
-print("Overview Label 1: ", overview_label_1)
-
-main = "https://leapsandrebounds.com/"
-
-# Example list of websites (to start off)
-websites = [
-    "https://www.bellicon.com",
-    "https://www.jumpsport.com",
-    "https://www.bcanfitness.com",
-    "https://www.acontrampolines.com",
-    "https://www.staminaproducts.com",
-    "https://www.sunnyhealthfitness.com",
-    "https://www.dickssportinggoods.com",
-    "https://www.kanchimi.com",
-    "https://www.domyos.com",
-    "https://www.argos.co.uk",
-    "https://www.boogiebounce.com",
-    "https://www.ativafit.com",
-    "https://www.darchen.com",
-    "https://www.theness.com",
-    "https://www.sportplus.com",
-    "https://www.radicalrebounding.com",
-    "https://www.reboundfit.com",
-    "https://www.jumpandjacked.com",
-    "https://www.reboundercanada.com",
-    "https://www.rebounderworld.com",
-    "https://www.urbanrebounder.com",
-    "https://www.jumpsportfitness.com",
-    "https://www.rebounderpro.com",
-    "https://www.reboundershop.com",
-    "https://www.rebounderdirect.com"
-]
-
-# Function to create or get website ID from MongoDB
-def get_or_create_website_id(website_url: str):
-    # Check if the website already exists in MongoDB
-    existing_website = websites_collection.find_one({"url": website_url})
-    if existing_website:
-        return existing_website["_id"]
+def get_website_pages(website_url: str) -> list:
+    """Get all pages from a website"""
+    prompt = """List all the product or service pages on this website. 
+    Return only the URLs, one per line, with no additional text or formatting."""
     
-    # If the website does not exist, insert it and return the new ID
-    new_website = {"url": website_url}
-    result = websites_collection.insert_one(new_website)
-    return result.inserted_id
-
-# Function to generate OpenAI response
-def stream_openai_response(prompt: str, website_url: str):
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": f"You are a helpful assistant analyzing the website: {website_url}."},
-            {"role": "user", "content": prompt}
-        ],
-        stream=True,
-    )
-
-    result = ''
-    for chunk in response:
-        if 'choices' in chunk:
-            for choice in chunk['choices']:
-                if 'message' in choice:
-                    result += choice['message']['content']
-    return result.strip()
-
-# Function to get all the pages for a website using OpenAI
-def get_website_pages(website_url: str):
-    prompt = f"List all the product or service pages on the website {website_url}."
-    response = stream_openai_response(prompt, website_url)
-    
-    pages = response.split(',')
-    pages = [page.strip() for page in pages]
-    
+    response = get_gpt_response(prompt, website_url)
+    pages = [page.strip() for page in response.split('\n') if page.strip()]
     return pages
 
-# Function to process all prompts for a website overview
-def process_overview_for_website(prompts_json, website_url):
-    website_output = {}
-
-    for key, prompt_data in prompts_json.items():
-        prompt = prompt_data["prompt"]
-        label = prompt_data["label"]
-        
-        response = stream_openai_response(prompt, website_url)
-        website_output[label] = response
+def process_prompts_for_target(prompts: Dict[str, Dict[str, Dict[str, str]]], 
+                             target_url: str, 
+                             prompt_type: str) -> Dict[str, Any]:
+    """Process numbered prompts for a given URL"""
+    results = {}
     
-    return website_output
-
-# Function to process prompts for a specific website and its pages
-def process_page_level_for_website(prompts_json, website_url, pages):
-    page_level_output = {}
-
-    for page_url in pages:
-        page_output = {}
-
-        for key, prompt_data in prompts_json.items():
-            prompt = prompt_data["prompt"]
-            label = prompt_data["label"]
-            
-            response = stream_openai_response(prompt, page_url)
-            page_output[label] = response
-        
-        page_level_output[page_url] = page_output
+    # Get the specific prompt type (overview_prompts or page_prompts)
+    type_prompts = prompts[prompt_type]
     
-    return page_level_output
-
-# Function to process all websites
-def process_websites(prompts_json, websites):
-    output = []
-    website_ids = []
-
-    for website in websites:
-        website_id = get_or_create_website_id(website)
-        website_ids.append({"url": website, "id": str(website_id)})
-        
-        website_overview = process_overview_for_website(prompts_json, website)
-        pages = get_website_pages(website)
-        website_page_level = process_page_level_for_website(prompts_json, website, pages)
-
-        website_data = {
-            "website_id": str(website_id),
-            "overview": website_overview,
-            "pages": website_page_level
+    # Process each numbered prompt
+    for prompt_num in type_prompts:
+        prompt_data = type_prompts[prompt_num]
+        response = get_gpt_response(prompt_data["prompt"], target_url)
+        results[prompt_data["label"]] = {
+            "response": response,
+            "prompt_number": prompt_num,
+            "timestamp": datetime.utcnow()
         }
+    
+    return results
 
-        output.append(website_data)
+def process_website(website_url: str, is_main: bool, prompts: Dict) -> Dict[str, Any]:
+    """Process a single website and return its analysis data"""
+    # Create base document structure
+    website_data = {
+        "url": website_url,
+        "is_main": is_main,
+        "created_at": datetime.utcnow(),
+        "last_updated": datetime.utcnow(),
+        "sections": {
+            "overview": {
+                "data": process_prompts_for_target(prompts, website_url, "overview_prompts"),
+                "url": website_url,
+                "type": "overview"
+            }
+        }
+    }
+    
+    # Get and process all pages
+    pages = get_website_pages(website_url)
+    for idx, page in enumerate(pages, 1):
+        section_key = f"page_{idx}"
+        website_data["sections"][section_key] = {
+            "data": process_prompts_for_target(prompts, page, "page_prompts"),
+            "url": page,
+            "type": "page"
+        }
+    
+    return website_data
 
-    return output, website_ids
+def main():
+    # Load configuration
+    prompts = load_prompts()
+    main_website = "https://leapsandrebounds.com/"
+    websites = [
+        "https://www.bellicon.com",
+        "https://www.jumpsport.com",
+        # ... rest of your websites list
+    ]
 
-# Run the process and store the results
-processed_data, website_ids = process_websites(prompts_json, websites)
+    # Process main website
+    print(f"Processing main website: {main_website}")
+    main_website_data = process_website(main_website, True, prompts)
+    
+    # Save or update main website data
+    company_collection.update_one(
+        {"url": main_website},
+        {"$set": main_website_data},
+        upsert=True
+    )
 
-# Now processed_data contains the OpenAI responses with website IDs, ready for MongoDB upload.
-print(json.dumps(processed_data, indent=2))
-print("Website IDs:", json.dumps(website_ids, indent=2))
+    # Process competitor websites
+    for website in websites:
+        print(f"Processing competitor website: {website}")
+        competitor_data = process_website(website, False, prompts)
+        
+        # Save or update competitor data
+        company_collection.update_one(
+            {"url": website},
+            {"$set": competitor_data},
+            upsert=True
+        )
 
+if __name__ == "__main__":
+    main()
