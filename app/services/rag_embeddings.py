@@ -64,8 +64,9 @@ def create_embeddings(txt_paths, persist_directory):
 
     return len(all_documents)
 
-if __name__ == "__main__":
-    TXT_PATHS = {
+
+    def generate_vectorestore():
+     TXT_PATHS = {
         "./new_scripts/Witness_Statement_Rachel_Green.txt": "POLICEREPORTRACHELGREEN",
         "./new_scripts/Police_Report_Officer_James_Mitchell.txt": "POLICEREPORTSUMMARY",
         "./new_scripts/Injury_Report_John_Smith.txt": "INJURY",
@@ -81,3 +82,23 @@ if __name__ == "__main__":
         print(f"Created embeddings for {num_chunks} text chunks from multiple text files")
     except Exception as e:
         print(f"An error occurred: {str(e)}")
+
+
+
+#if __name__ == "__main__":
+#    TXT_PATHS = {
+#        "./new_scripts/Witness_Statement_Rachel_Green.txt": "POLICEREPORTRACHELGREEN",
+#        "./new_scripts/Police_Report_Officer_James_Mitchell.txt": "POLICEREPORTSUMMARY",
+#        "./new_scripts/Injury_Report_John_Smith.txt": "INJURY",
+#        "./new_scripts/Medical_Records_John_Smith.txt": "JOHNSMITHMEDICAL",
+#        "./new_scripts/Insurance_Claim_John_Smith.txt": "JOHNSMITHINSURANCE",
+#        "./new_scripts/Driver_Statement_James_Wilson.txt": "JACKTOMPSONSTATEMENT",
+#        "./new_scripts/Accident_Reconstruction_Report.txt": "ACCIDENTRECONSTRUCTION",
+#    }
+#    PERSIST_DIRECTORY = "embeddings_db"
+#    
+#    try:
+#        num_chunks = create_embeddings(TXT_PATHS, PERSIST_DIRECTORY)
+#        print(f"Created embeddings for {num_chunks} text chunks from multiple text files")
+#    except Exception as e:
+#        print(f"An error occurred: {str(e)}")
