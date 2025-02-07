@@ -1,136 +1,146 @@
-{
-  "Competitor_Information_Extraction": {
+  {
     "1": {
-      "prompt": "Extract the business name or brand name from the website's header or meta tags.",
-      "label": "Business Name or Brand Name"
+      "prompt": "What is the page title (<title>) for the current page?",
+      "label": "Page Title"
     },
     "2": {
-      "prompt": "Retrieve a brief description or tagline of the business from the homepage or about us page.",
-      "label": "Business Description/Tagline"
+      "prompt": "Retrieve the meta description tag (<meta name=\"description\">) for this page.",
+      "label": "Meta Description"
     },
     "3": {
-      "prompt": "Extract the contact information (e.g., email, phone number, address) from the footer or contact us page.",
-      "label": "Contact Information"
+      "prompt": "Extract the meta keywords (<meta name=\"keywords\">) for this page, if present.",
+      "label": "Meta Keywords"
     },
     "4": {
-      "prompt": "Identify and list all social media links (e.g., Facebook, Twitter, LinkedIn, Instagram, etc.) from the website.",
-      "label": "Social Media Links"
+      "prompt": "Fetch the canonical URL (<link rel=\"canonical\">) tag for this page.",
+      "label": "Canonical URL"
     },
     "5": {
-      "prompt": "Extract the main products or services offered by the competitor from the homepage or product/service pages.",
-      "label": "Main Products/Services"
+      "prompt": "Extract Open Graph meta tags (e.g., <meta property=\"og:title\">, <meta property=\"og:description\">, <meta property=\"og:image\">) from the page.",
+      "label": "Open Graph Tags"
     },
     "6": {
-      "prompt": "Identify the competitor’s logo from the homepage or header section of the website.",
-      "label": "Logo"
+      "prompt": "Extract Twitter Card meta tags (e.g., <meta name=\"twitter:title\">, <meta name=\"twitter:description\">, <meta name=\"twitter:image\">) for this page.",
+      "label": "Twitter Card Tags"
     },
     "7": {
-      "prompt": "Retrieve the language of the website (e.g., English, Spanish, etc.) from the meta tags or header section.",
-      "label": "Website Language"
+      "prompt": "Retrieve the viewport meta tag (<meta name=\"viewport\">) for mobile optimization.",
+      "label": "Viewport Tag"
     },
     "8": {
-      "prompt": "Extract the physical location or headquarters information from the about us or contact us page.",
-      "label": "Physical Location/Headquarters"
+      "prompt": "Check if there is a meta author tag (<meta name=\"author\">) and extract its value.",
+      "label": "Meta Author"
     },
     "9": {
-      "prompt": "Look for pricing details or pricing pages related to the competitor's products/services.",
-      "label": "Pricing Details"
+      "prompt": "What is the content of the main header (<h1>) tag on this page?",
+      "label": "Main Header (H1)"
     },
     "10": {
-      "prompt": "Extract any customer reviews or testimonials from the competitor's website.",
-      "label": "Customer Reviews/Testimonials"
+      "prompt": "Retrieve all image (<img>) alt texts for accessibility and SEO purposes.",
+      "label": "Image Alt Texts"
     },
     "11": {
-      "prompt": "Identify if the competitor has a blog or resource section and extract any notable articles or resources.",
-      "label": "Blog/Resource Section"
+      "prompt": "Extract any schema.org JSON-LD, Microdata, or RDFa markup from the page (e.g., Article, Product, Review, etc.).",
+      "label": "Schema Markup"
     },
     "12": {
-      "prompt": "Identify the technology stack used by the competitor, such as CMS (WordPress, Shopify), hosting, e-commerce platform, etc.",
-      "label": "Technology Stack"
+      "prompt": "Extract all internal links (<a href>) from the page, including their rel attributes (nofollow, etc.).",
+      "label": "Internal Links"
     },
     "13": {
-      "prompt": "Extract any certifications, awards, or partnerships listed on the website (e.g., industry certifications, partner logos).",
-      "label": "Certifications/Awards/Partnerships"
+      "prompt": "Identify and list all external links (<a href>) on the page and check if they have rel=\"noopener noreferrer\".",
+      "label": "External Links"
     },
     "14": {
-      "prompt": "Extract any prominent Call to Action buttons or links (e.g., ‘Buy Now’, ‘Request a Quote’) on the homepage or product pages.",
-      "label": "Call to Action Buttons"
+      "prompt": "Retrieve the robots meta tag (<meta name=\"robots\">) and its content to check for crawl instructions (e.g., noindex, nofollow).",
+      "label": "Robots Meta Tag"
     },
     "15": {
-      "prompt": "Locate and extract the URLs for the competitor’s terms and conditions, privacy policy, or legal disclaimers.",
-      "label": "Legal Pages (Terms, Privacy, Disclaimers)"
+      "prompt": "Check if the URLs in the page are SEO-friendly (i.e., clean URLs without unnecessary parameters).",
+      "label": "SEO-Friendly URLs"
     },
     "16": {
-      "prompt": "If the competitor has a blog or news section, extract a list of recent blog post titles and their links.",
-      "label": "Blog Post Titles/Links"
+      "prompt": "Extract the <link rel=\"alternate\" hreflang> tags for any language or regional variations.",
+      "label": "Hreflang Tags"
     },
     "17": {
-      "prompt": "Extract keywords from the meta tags, headings, and other SEO elements (e.g., <meta name=\"keywords>\") used by the competitor.",
-      "label": "SEO Keywords"
+      "prompt": "Retrieve the favicon URL (<link rel=\"icon\">) from the page.",
+      "label": "Favicon URL"
     },
     "18": {
-      "prompt": "Extract any indication of the competitor's target market or customer demographics (e.g., small businesses, enterprises, individuals).",
-      "label": "Target Market/Customer Demographics"
+      "prompt": "Check if the page has an AMP version (<link rel=\"amphtml\").",
+      "label": "AMP Version"
     },
     "19": {
-      "prompt": "Look for any geographical or regional targeting information (e.g., countries, cities) mentioned on the website.",
-      "label": "Geographical/Regional Targeting"
+      "prompt": "If the page is a news article, extract the structured data related to news (e.g., <meta name=\"news_keywords\"> or NewsArticle schema).",
+      "label": "News Article Structured Data"
     },
     "20": {
-      "prompt": "Check if the competitor has an affiliate or referral program and extract relevant details.",
-      "label": "Affiliate/Referral Program"
+      "prompt": "Fetch any other relevant social sharing tags like fb:app_id, twitter:card, etc.",
+      "label": "Social Sharing Tags"
     },
     "21": {
-      "prompt": "If the competitor offers educational resources or guides, extract the titles and links to these resources.",
-      "label": "Educational Resources/Guides"
+      "prompt": "Retrieve the page's load speed data using tools like Google PageSpeed Insights, if available in the headers or response.",
+      "label": "Page Load Speed"
     },
     "22": {
-      "prompt": "Extract questions and answers from the competitor’s FAQ page, if available.",
-      "label": "FAQ Questions/Answers"
-    },
-    "23": {
-      "prompt": "Extract detailed customer testimonials or case studies from the website, including any performance metrics.",
-      "label": "Customer Testimonials/Case Studies"
-    },
-    "24": {
-      "prompt": "Look for and extract any awards or recognitions the competitor has received.",
-      "label": "Awards/Recognitions"
-    },
-    "25": {
-      "prompt": "Extract information about the competitor's email newsletter signup form (e.g., location, benefits, call-to-action).",
-      "label": "Newsletter Signup"
-    },
-    "26": {
-      "prompt": "Identify and extract any press mentions or media coverage of the competitor.",
-      "label": "Press Mentions/Media Coverage"
-    },
-    "27": {
-      "prompt": "Identify if there are any affiliate or partner links on the website and extract the related URLs.",
-      "label": "Affiliate/Partner Links"
-    },
-    "28": {
-      "prompt": "Check if the competitor’s website is mobile-optimized and identify any special mobile features (e.g., AMP pages, mobile CTA buttons).",
+      "prompt": "Check if the page is optimized for mobile and retrieve any hints from the viewport tag or mobile-specific settings.",
       "label": "Mobile Optimization"
     },
+    "23": {
+      "prompt": "Retrieve the content length header (Content-Length) to get an idea of the page’s size and performance.",
+      "label": "Content Length"
+    },
+    "24": {
+      "prompt": "Extract any JSON-LD structured data from the page, including product or article data.",
+      "label": "JSON-LD Data"
+    },
+    "25": {
+      "prompt": "Check if the page links to minified versions of CSS and JavaScript files and extract URLs for these files.",
+      "label": "Minified Files"
+    },
+    "26": {
+      "prompt": "Check the page for a link to the XML sitemap (<link rel=\"sitemap\" href=\"sitemap.xml\").",
+      "label": "XML Sitemap Link"
+    },
+    "27": {
+      "prompt": "List all crawlable internal links, identifying any links that are potentially blocked by robots.txt or meta tags.",
+      "label": "Crawlable Internal Links"
+    },
+    "28": {
+      "prompt": "Identify if the site has a robots.txt file and extract its contents to determine which pages or directories are blocked from crawling.",
+      "label": "Robots.txt File"
+    },
     "29": {
-      "prompt": "Check if the competitor's website has a search feature and what types of results it provides.",
-      "label": "Search Feature"
+      "prompt": "Check the page for any broken links (<a href>) and identify if any 404 errors are returned when the link is followed.",
+      "label": "Broken Links"
     },
     "30": {
-      "prompt": "Extract product reviews and ratings, if available, for the competitor's products or services.",
-      "label": "Product Reviews/Ratings"
+      "prompt": "Detect if there are any HTTP 301/302 redirects on the page and extract the target URL.",
+      "label": "HTTP Redirects"
     },
-    "Pages_To_Extract": {
-      "1": "Home Page: General overview and links to important sections.",
-      "2": "About Us Page: Brand story, mission, and location.",
-      "3": "Products/Services Pages: Detailed information on offerings.",
-      "4": "Contact Us Page: Contact info, location, and social links.",
-      "5": "Blog/Resources Page: Educational content and thought leadership.",
-      "6": "Testimonials/Reviews Page: Customer feedback and case studies.",
-      "7": "Pricing Page: Pricing structure, plans, and options.",
-      "8": "Legal Pages (Privacy Policy, Terms of Service): Legal disclaimers and policies.",
-      "9": "FAQ Page: Frequently asked questions and answers.",
-      "10": "Press or Media Coverage: Mentions of the competitor in the media."
+    "31": {
+      "prompt": "If available, extract the page rank or SEO score provided by tools like Ahrefs or Moz.",
+      "label": "Page Rank/SEO Score"
+    },
+    "32": {
+      "prompt": "Extract information related to backlinks pointing to the page, if available.",
+      "label": "Backlink Information"
+    },
+    "33": {
+      "prompt": "If this is a product page, extract product schema (e.g., price, availability, brand, SKU).",
+      "label": "Product Schema"
+    },
+    "34": {
+      "prompt": "If the page has embedded videos, extract metadata related to the videos (e.g., <meta property=\"og:video\").",
+      "label": "Video Metadata"
+    },
+    "35": {
+      "prompt": "Retrieve the general site meta tags like site name, default description, and author from the header section.",
+      "label": "Site Meta Tags"
+    },
+    "36": {
+      "prompt": "Check if there are any footer SEO elements like legal disclaimers, sitemap links, or other footer-based meta tags.",
+      "label": "Footer SEO Elements"
     }
   }
-}

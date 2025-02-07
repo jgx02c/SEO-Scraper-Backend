@@ -1,7 +1,13 @@
 import openai
 import json
+from pymongo import MongoClient
 
 openai.api_key = 'your-api-key'  # Add your OpenAI API key here
+
+# MongoDB client setup
+client = MongoClient('mongodb://localhost:27017/')  # Connect to MongoDB
+db = client['website_data']  # Database name
+websites_collection = db['websites']  # Collection name
 
 # Load the prompts JSON from an external file
 with open('prompts.json', 'r') as file:
@@ -22,7 +28,7 @@ print("Page Label 5: ", page_label_5)
 print("Overview Prompt 1: ", overview_prompt_1)
 print("Overview Label 1: ", overview_label_1)
 
-main = "https://leapsandrebounds.com"
+main = "https://leapsandrebounds.com/"
 
 # Example list of websites (to start off)
 websites = [
@@ -53,19 +59,29 @@ websites = [
     "https://www.rebounderdirect.com"
 ]
 
+# Function to create or get website ID from MongoDB
+def get_or_create_website_id(website_url: str):
+    # Check if the website already exists in MongoDB
+    existing_website = websites_collection.find_one({"url": website_url})
+    if existing_website:
+        return existing_website["_id"]
+    
+    # If the website does not exist, insert it and return the new ID
+    new_website = {"url": website_url}
+    result = websites_collection.insert_one(new_website)
+    return result.inserted_id
+
 # Function to generate OpenAI response
 def stream_openai_response(prompt: str, website_url: str):
-    # Create a chat completion request with streaming enabled
     response = openai.ChatCompletion.create(
-        model="gpt-4",  # Adjust based on the model you're using
+        model="gpt-4",
         messages=[
             {"role": "system", "content": f"You are a helpful assistant analyzing the website: {website_url}."},
             {"role": "user", "content": prompt}
         ],
-        stream=True,  # Enable streaming
+        stream=True,
     )
 
-    # Collect the streaming response
     result = ''
     for chunk in response:
         if 'choices' in chunk:
@@ -77,14 +93,10 @@ def stream_openai_response(prompt: str, website_url: str):
 # Function to get all the pages for a website using OpenAI
 def get_website_pages(website_url: str):
     prompt = f"List all the product or service pages on the website {website_url}."
-    print(f"Getting pages for website: {website_url}")
-    
-    # Get response from OpenAI to list pages for the website
     response = stream_openai_response(prompt, website_url)
     
-    # Assuming the response is a comma-separated list of pages
     pages = response.split(',')
-    pages = [page.strip() for page in pages]  # Clean up any extra spaces
+    pages = [page.strip() for page in pages]
     
     return pages
 
@@ -92,15 +104,11 @@ def get_website_pages(website_url: str):
 def process_overview_for_website(prompts_json, website_url):
     website_output = {}
 
-    # Process each overview prompt for the website
     for key, prompt_data in prompts_json.items():
         prompt = prompt_data["prompt"]
         label = prompt_data["label"]
         
-        print(f"Processing overview prompt: {prompt} for website: {website_url}")
         response = stream_openai_response(prompt, website_url)
-        
-        # Store the result under the correct label
         website_output[label] = response
     
     return website_output
@@ -109,7 +117,6 @@ def process_overview_for_website(prompts_json, website_url):
 def process_page_level_for_website(prompts_json, website_url, pages):
     page_level_output = {}
 
-    # For each page, process the relevant prompts
     for page_url in pages:
         page_output = {}
 
@@ -117,46 +124,40 @@ def process_page_level_for_website(prompts_json, website_url, pages):
             prompt = prompt_data["prompt"]
             label = prompt_data["label"]
             
-            print(f"Processing page-level prompt: {prompt} for page: {page_url}")
             response = stream_openai_response(prompt, page_url)
-            
-            # Store the result under the correct label
             page_output[label] = response
         
-        # Store the page output under the website and page URL
         page_level_output[page_url] = page_output
     
     return page_level_output
 
 # Function to process all websites
 def process_websites(prompts_json, websites):
-    output = {}
+    output = []
+    website_ids = []
 
     for website in websites:
-        # Step 1: Process overview prompts
-        print(f"Processing overview for website: {website}")
+        website_id = get_or_create_website_id(website)
+        website_ids.append({"url": website, "id": str(website_id)})
+        
         website_overview = process_overview_for_website(prompts_json, website)
-
-        # Step 2: Get the pages of the website using OpenAI
         pages = get_website_pages(website)
-
-        # Step 3: Process page-level prompts for each page
-        print(f"Processing page-level prompts for website: {website}")
         website_page_level = process_page_level_for_website(prompts_json, website, pages)
 
-        # Combine both overview and page-level results
         website_data = {
+            "website_id": str(website_id),
             "overview": website_overview,
             "pages": website_page_level
         }
 
-        # Store results for the website
-        output[website] = website_data
+        output.append(website_data)
 
-    return output
+    return output, website_ids
 
 # Run the process and store the results
-processed_data = process_websites(prompts_json, websites)
+processed_data, website_ids = process_websites(prompts_json, websites)
 
-# Print the final output (this would be ready for MongoDB upload)
+# Now processed_data contains the OpenAI responses with website IDs, ready for MongoDB upload.
 print(json.dumps(processed_data, indent=2))
+print("Website IDs:", json.dumps(website_ids, indent=2))
+
