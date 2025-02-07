@@ -22,6 +22,8 @@ print("Page Label 5: ", page_label_5)
 print("Overview Prompt 1: ", overview_prompt_1)
 print("Overview Label 1: ", overview_label_1)
 
+main = "https://leapsandrebounds.com"
+
 # Example list of websites (to start off)
 websites = [
     "https://www.bellicon.com",
