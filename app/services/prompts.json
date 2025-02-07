@@ -102,26 +102,7 @@
       "prompt": "Fetch any other relevant social sharing tags like fb:app_id, twitter:card, etc.",
       "label": "Social Sharing Tags"
     },
-    "21": {
-      "prompt": "Retrieve the page's load speed data using tools like Google PageSpeed Insights, if available in the headers or response.",
-      "label": "Page Load Speed"
-    },
-    "22": {
-      "prompt": "Check if the page is optimized for mobile and retrieve any hints from the viewport tag or mobile-specific settings.",
-      "label": "Mobile Optimization"
-    },
-    "23": {
-      "prompt": "Retrieve the content length header (Content-Length) to get an idea of the page's size and performance.",
-      "label": "Content Length"
-    },
-    "24": {
-      "prompt": "Extract any JSON-LD structured data from the page, including product or article data.",
-      "label": "JSON-LD Data"
-    },
-    "25": {
-      "prompt": "Check if the page links to minified versions of CSS and JavaScript files and extract URLs for these files.",
-      "label": "Minified Files"
-    },
+
     "26": {
       "prompt": "Check the page for a link to the XML sitemap (<link rel=\"sitemap\" href=\"sitemap.xml\").",
       "label": "XML Sitemap Link"
@@ -129,42 +110,6 @@
     "27": {
       "prompt": "List all crawlable internal links, identifying any links that are potentially blocked by robots.txt or meta tags.",
       "label": "Crawlable Internal Links"
-    },
-    "28": {
-      "prompt": "Identify if the site has a robots.txt file and extract its contents to determine which pages or directories are blocked from crawling.",
-      "label": "Robots.txt File"
-    },
-    "29": {
-      "prompt": "Check the page for any broken links (<a href>) and identify if any 404 errors are returned when the link is followed.",
-      "label": "Broken Links"
-    },
-    "30": {
-      "prompt": "Detect if there are any HTTP 301/302 redirects on the page and extract the target URL.",
-      "label": "HTTP Redirects"
-    },
-    "31": {
-      "prompt": "If available, extract the page rank or SEO score provided by tools like Ahrefs or Moz.",
-      "label": "Page Rank/SEO Score"
-    },
-    "32": {
-      "prompt": "Extract information related to backlinks pointing to the page, if available.",
-      "label": "Backlink Information"
-    },
-    "33": {
-      "prompt": "If this is a product page, extract product schema (e.g., price, availability, brand, SKU).",
-      "label": "Product Schema"
-    },
-    "34": {
-      "prompt": "If the page has embedded videos, extract metadata related to the videos (e.g., <meta property=\"og:video\").",
-      "label": "Video Metadata"
-    },
-    "35": {
-      "prompt": "Retrieve the general site meta tags like site name, default description, and author from the header section.",
-      "label": "Site Meta Tags"
-    },
-    "36": {
-      "prompt": "Check if there are any footer SEO elements like legal disclaimers, sitemap links, or other footer-based meta tags.",
-      "label": "Footer SEO Elements"
     }
   }
 }
