@@ -1,81 +1,113 @@
 {
-    "1": {
-        "prompt": "Generate a list of 5 popular technology news websites. Return as a JSON array of objects with 'url' and 'name' fields.",
-        "continuation_prompt": 2,
-        "iterate_array": false,
-        "store_mongodb": false,
-        "store_pinecone": false,
-        "metadata_structure": {
-            "type": "website_list",
-            "timestamp": "auto",
-            "category": "tech_news"
-        },
-        "description": "Initial prompt to get list of websites"
-    },
-    "2": {
-        "prompt": "For each website in {previous_results}, determine its main focus area. Return JSON objects with: 'url', 'name', 'focus_area', 'topic_keywords' (array of 5 keywords).",
-        "continuation_prompt": 3,
-        "iterate_array": false,
-        "store_mongodb": true,
-        "store_pinecone": false,
-        "metadata_structure": {
-            "type": "website_categories",
-            "timestamp": "auto",
-            "searchable_fields": ["focus_area", "topic_keywords"],
-            "source": "gpt_analysis"
-        },
-        "description": "Categorize each website"
-    },
-    "3": {
-        "prompt": "Analyze website #{index}: {item.url}. Return a detailed JSON object with: 1) content_summary, 2) key_topics (array), 3) audience_demographics, 4) content_quality_score (1-10), 5) writing_style_description.",
-        "continuation_prompt": 4,
-        "iterate_array": true,
-        "store_mongodb": true,
-        "store_pinecone": true,
-        "metadata_structure": {
-            "type": "website_analysis",
-            "timestamp": "auto",
-            "url": "{item.url}",
-            "name": "{item.name}",
-            "focus_area": "{item.focus_area}",
-            "keywords": "{item.topic_keywords}",
-            "chunk_type": "full_analysis",
-            "score": "content_quality_score",
-            "embedding_fields": ["content_summary", "key_topics"],
-            "namespace": "tech_websites"
-        },
-        "description": "Detailed analysis of each site"
-    },
-    "4": {
-        "prompt": "Based on the analyses in {previous_results}, identify content gaps and opportunities. Return a JSON object with: 1) underserved_topics, 2) emerging_trends, 3) audience_gaps, 4) market_opportunities.",
-        "continuation_prompt": 5,
-        "iterate_array": false,
-        "store_mongodb": true,
-        "store_pinecone": true,
-        "metadata_structure": {
-            "type": "market_analysis",
-            "timestamp": "auto",
-            "analysis_type": "gap_analysis",
-            "data_sources": "previous_analyses",
-            "embedding_fields": ["underserved_topics", "emerging_trends"],
-            "namespace": "market_insights"
-        },
-        "description": "Gap analysis based on all previous data"
-    },
-    "5": {
-        "prompt": "Create a content strategy proposal. Use gaps from {previous_results}. Return JSON with: 1) focus_areas, 2) target_audience, 3) content_types, 4) competitive_advantages, 5) implementation_steps.",
-        "continuation_prompt": null,
-        "iterate_array": false,
-        "store_mongodb": true,
-        "store_pinecone": true,
-        "metadata_structure": {
-            "type": "strategy_proposal",
-            "timestamp": "auto",
-            "proposal_type": "content_strategy",
-            "based_on": "gap_analysis",
-            "embedding_fields": ["focus_areas", "implementation_steps"],
-            "namespace": "strategies"
-        },
-        "description": "Final strategy recommendation"
+    "SEO_Extraction": {
+      "1": {
+        "prompt": "What is the page title (<title>) for the current page?"
+      },
+      "2": {
+        "prompt": "Retrieve the meta description tag (<meta name=\"description\">) for this page."
+      },
+      "3": {
+        "prompt": "Extract the meta keywords (<meta name=\"keywords\">) for this page, if present."
+      },
+      "4": {
+        "prompt": "Fetch the canonical URL (<link rel=\"canonical\">) tag for this page."
+      },
+      "5": {
+        "prompt": "Extract Open Graph meta tags (e.g., <meta property=\"og:title\">, <meta property=\"og:description\">, <meta property=\"og:image\">) from the page."
+      },
+      "6": {
+        "prompt": "Extract Twitter Card meta tags (e.g., <meta name=\"twitter:title\">, <meta name=\"twitter:description\">, <meta name=\"twitter:image\">) for this page."
+      },
+      "7": {
+        "prompt": "Retrieve the viewport meta tag (<meta name=\"viewport\">) for mobile optimization."
+      },
+      "8": {
+        "prompt": "Check if there is a meta author tag (<meta name=\"author\">) and extract its value."
+      },
+      "9": {
+        "prompt": "What is the content of the main header (<h1>) tag on this page?"
+      },
+      "10": {
+        "prompt": "Retrieve all image (<img>) alt texts for accessibility and SEO purposes."
+      },
+      "11": {
+        "prompt": "Extract any schema.org JSON-LD, Microdata, or RDFa markup from the page (e.g., Article, Product, Review, etc.)."
+      },
+      "12": {
+        "prompt": "Extract all internal links (<a href>) from the page, including their rel attributes (nofollow, etc.)."
+      },
+      "13": {
+        "prompt": "Identify and list all external links (<a href>) on the page and check if they have rel=\"noopener noreferrer\"."
+      },
+      "14": {
+        "prompt": "Retrieve the robots meta tag (<meta name=\"robots\">) and its content to check for crawl instructions (e.g., noindex, nofollow)."
+      },
+      "15": {
+        "prompt": "Check if the URLs in the page are SEO-friendly (i.e., clean URLs without unnecessary parameters)."
+      },
+      "16": {
+        "prompt": "Extract the <link rel=\"alternate\" hreflang> tags for any language or regional variations."
+      },
+      "17": {
+        "prompt": "Retrieve the favicon URL (<link rel=\"icon\">) from the page."
+      },
+      "18": {
+        "prompt": "Check if the page has an AMP version (<link rel=\"amphtml\")."
+      },
+      "19": {
+        "prompt": "If the page is a news article, extract the structured data related to news (e.g., <meta name=\"news_keywords\"> or NewsArticle schema)."
+      },
+      "20": {
+        "prompt": "Fetch any other relevant social sharing tags like fb:app_id, twitter:card, etc."
+      },
+      "21": {
+        "prompt": "Retrieve the page's load speed data using tools like Google PageSpeed Insights, if available in the headers or response."
+      },
+      "22": {
+        "prompt": "Check if the page is optimized for mobile and retrieve any hints from the viewport tag or mobile-specific settings."
+      },
+      "23": {
+        "prompt": "Retrieve the content length header (Content-Length) to get an idea of the page’s size and performance."
+      },
+      "24": {
+        "prompt": "Extract any JSON-LD structured data from the page, including product or article data."
+      },
+      "25": {
+        "prompt": "Check if the page links to minified versions of CSS and JavaScript files and extract URLs for these files."
+      },
+      "26": {
+        "prompt": "Check the page for a link to the XML sitemap (<link rel=\"sitemap\" href=\"sitemap.xml\")."
+      },
+      "27": {
+        "prompt": "List all crawlable internal links, identifying any links that are potentially blocked by robots.txt or meta tags."
+      },
+      "28": {
+        "prompt": "Identify if the site has a robots.txt file and extract its contents to determine which pages or directories are blocked from crawling."
+      },
+      "29": {
+        "prompt": "Check the page for any broken links (<a href>) and identify if any 404 errors are returned when the link is followed."
+      },
+      "30": {
+        "prompt": "Detect if there are any HTTP 301/302 redirects on the page and extract the target URL."
+      },
+      "31": {
+        "prompt": "If available, extract the page rank or SEO score provided by tools like Ahrefs or Moz."
+      },
+      "32": {
+        "prompt": "Extract information related to backlinks pointing to the page, if available."
+      },
+      "33": {
+        "prompt": "If this is a product page, extract product schema (e.g., price, availability, brand, SKU)."
+      },
+      "34": {
+        "prompt": "If the page has embedded videos, extract metadata related to the videos (e.g., <meta property=\"og:video\")."
+      },
+      "35": {
+        "prompt": "Retrieve the general site meta tags like site name, default description, and author from the header section."
+      },
+      "36": {
+        "prompt": "Check if there are any footer SEO elements like legal disclaimers, sitemap links, or other footer-based meta tags."
+      }
     }
-}
+  }
+  
