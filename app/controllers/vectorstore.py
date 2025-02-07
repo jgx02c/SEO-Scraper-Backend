@@ -4,7 +4,7 @@ from bson.objectid import ObjectId
 
 db_collection = get_collection("company")
 
-async def purge_all_data():
+async def rerun_vectorstore():
     try:
         delete_result = await db_collection.delete_one({"_id": ObjectId(company_id)})
         if delete_result.deleted_count == 0:
