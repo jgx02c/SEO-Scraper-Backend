@@ -1,0 +1,107 @@
+{
+    "Competitor_Information_Extraction": {
+      "1": {
+        "prompt": "Extract the business name or brand name from the website's header or meta tags."
+      },
+      "2": {
+        "prompt": "Retrieve a brief description or tagline of the business from the homepage or about us page."
+      },
+      "3": {
+        "prompt": "Extract the contact information (e.g., email, phone number, address) from the footer or contact us page."
+      },
+      "4": {
+        "prompt": "Identify and list all social media links (e.g., Facebook, Twitter, LinkedIn, Instagram, etc.) from the website."
+      },
+      "5": {
+        "prompt": "Extract the main products or services offered by the competitor from the homepage or product/service pages."
+      },
+      "6": {
+        "prompt": "Identify the competitor’s logo from the homepage or header section of the website."
+      },
+      "7": {
+        "prompt": "Retrieve the language of the website (e.g., English, Spanish, etc.) from the meta tags or header section."
+      },
+      "8": {
+        "prompt": "Extract the physical location or headquarters information from the about us or contact us page."
+      },
+      "9": {
+        "prompt": "Look for pricing details or pricing pages related to the competitor's products/services."
+      },
+      "10": {
+        "prompt": "Extract any customer reviews or testimonials from the competitor's website."
+      },
+      "11": {
+        "prompt": "Identify if the competitor has a blog or resource section and extract any notable articles or resources."
+      },
+      "12": {
+        "prompt": "Identify the technology stack used by the competitor, such as CMS (WordPress, Shopify), hosting, e-commerce platform, etc."
+      },
+      "13": {
+        "prompt": "Extract any certifications, awards, or partnerships listed on the website (e.g., industry certifications, partner logos)."
+      },
+      "14": {
+        "prompt": "Extract any prominent Call to Action buttons or links (e.g., ‘Buy Now’, ‘Request a Quote’) on the homepage or product pages."
+      },
+      "15": {
+        "prompt": "Locate and extract the URLs for the competitor’s terms and conditions, privacy policy, or legal disclaimers."
+      },
+      "16": {
+        "prompt": "If the competitor has a blog or news section, extract a list of recent blog post titles and their links."
+      },
+      "17": {
+        "prompt": "Extract keywords from the meta tags, headings, and other SEO elements (e.g., <meta name=\"keywords>\") used by the competitor."
+      },
+      "18": {
+        "prompt": "Extract any indication of the competitor's target market or customer demographics (e.g., small businesses, enterprises, individuals)."
+      },
+      "19": {
+        "prompt": "Look for any geographical or regional targeting information (e.g., countries, cities) mentioned on the website."
+      },
+      "20": {
+        "prompt": "Check if the competitor has an affiliate or referral program and extract relevant details."
+      },
+      "21": {
+        "prompt": "If the competitor offers educational resources or guides, extract the titles and links to these resources."
+      },
+      "22": {
+        "prompt": "Extract questions and answers from the competitor’s FAQ page, if available."
+      },
+      "23": {
+        "prompt": "Extract detailed customer testimonials or case studies from the website, including any performance metrics."
+      },
+      "24": {
+        "prompt": "Look for and extract any awards or recognitions the competitor has received."
+      },
+      "25": {
+        "prompt": "Extract information about the competitor's email newsletter signup form (e.g., location, benefits, call-to-action)."
+      },
+      "26": {
+        "prompt": "Identify and extract any press mentions or media coverage of the competitor."
+      },
+      "27": {
+        "prompt": "Identify if there are any affiliate or partner links on the website and extract the related URLs."
+      },
+      "28": {
+        "prompt": "Check if the competitor’s website is mobile-optimized and identify any special mobile features (e.g., AMP pages, mobile CTA buttons)."
+      },
+      "29": {
+        "prompt": "Check if the competitor's website has a search feature and what types of results it provides."
+      },
+      "30": {
+        "prompt": "Extract product reviews and ratings, if available, for the competitor's products or services."
+      },
+      "Pages_To_Extract": {
+        "1": "Home Page: General overview and links to important sections.",
+        "2": "About Us Page: Brand story, mission, and location.",
+        "3": "Products/Services Pages: Detailed information on offerings.",
+        "4": "Contact Us Page: Contact info, location, and social links.",
+        "5": "Blog/Resources Page: Educational content and thought leadership.",
+        "6": "Testimonials/Reviews Page: Customer feedback and case studies.",
+        "7": "Pricing Page: Pricing structure, plans, and options.",
+        "8": "Legal Pages (Privacy Policy, Terms of Service): Legal disclaimers and policies.",
+        "9": "FAQ Page: Frequently asked questions and answers.",
+        "10": "Press or Media Coverage: Mentions of the competitor in the media."
+      }
+    }
+  }
+  
