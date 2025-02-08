@@ -12,7 +12,7 @@ db = client['Cluster07388']
 company_collection = db['company']
 
 # Perplexity API setup
-PERPLEXITY_API_KEY = os.getenv('PERPLEXITY_API_KEY')
+PERPLEXITY_API_KEY = "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"
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 
 def get_sonar_response(prompt: str, website_url: str) -> str:
@@ -24,9 +24,9 @@ def get_sonar_response(prompt: str, website_url: str) -> str:
         }
         
         data = {
-            "model": "sonar-medium-online",  # or sonar-small-online or sonar-large-online based on your needs
+            "model": "sonar-reasoning",
             "messages": [
-                {"role": "system", "content": f"You are analyzing the website: {website_url}"},
+                {"role": "system", "content": f"You are analyzing the website page. In your response exclude <think>. Follow the instrutions exactly and only give the data on the webpage. Do not give instructions on how to get the data. Give the result, bullet points preffered.: {website_url}"},
                 {"role": "user", "content": prompt}
             ]
         }
@@ -39,6 +39,7 @@ def get_sonar_response(prompt: str, website_url: str) -> str:
     except Exception as e:
         print(f"Error getting Sonar response for {website_url}: {str(e)}")
         return ""
+
 
 def load_prompts() -> Dict[str, Dict[str, Dict[str, Dict[str, str]]]]:
     """Load prompts from JSON file"""
