@@ -1,7 +1,7 @@
 # controllers/chatData.py
 from fastapi import WebSocket, HTTPException
 from fastapi.responses import PlainTextResponse
-from ..services.rag_service import generate_insight_prompt  # Assuming this is where you have the function
+from ..services.rag_service_mongo import generate_insight_prompt  # Assuming this is where you have the function
 
 # This will be a function that can be called from the route
 async def chatData(chat_message: str, websocket: WebSocket):

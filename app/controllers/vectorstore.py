@@ -1,7 +1,7 @@
 from ..db.mongoConnect import get_collection
 from fastapi import HTTPException
 from bson.objectid import ObjectId
-from ..services.rag_embeddings import generate_vectorestore
+from ..services.rag_upsert_mongo import generate_vectorestore
 
 db_collection = get_collection("company")
 
