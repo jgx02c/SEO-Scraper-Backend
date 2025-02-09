@@ -3,17 +3,14 @@ import base64
 import sys
 import re
 import os
-
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from typing import Dict
 from langchain_core.runnables import RunnablePassthrough
-
 from langchain_openai import OpenAIEmbeddings
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-
 from pinecone import Pinecone
 from pinecone import ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
@@ -49,8 +46,6 @@ def process_transcription(text_chunk, vectordb):
 
     **Response**:  
     """
-
-
     
     question_answering_prompt = ChatPromptTemplate.from_messages([
         ("system", SYSTEM_TEMPLATE),
@@ -79,6 +74,17 @@ def generate_insight_prompt(message):
         print(f"Error during transcription processing: {str(e)}")
         yield "Error: Could not generate insight."
 
+# Callable function for external use
+def get_insight_for_input(user_input: str):
+    result = generate_insight_prompt(user_input)
+    insights = []
+    for insight in result:
+        insights.append(insight)
+    
+    output = " ".join(insights)
+    return output
+
+# Main entry point if running as standalone
 if __name__ == "__main__":
     while True:
         user_input = input("\nEnter your prompt (or type 'exit' to quit): ")
@@ -87,10 +93,5 @@ if __name__ == "__main__":
             break
         
         print("\nProcessing...\n")
-        result = generate_insight_prompt(user_input)
-        insights = []
-        for insight in result:
-            insights.append(insight)
-        
-        output = " ".join(insights)
+        output = get_insight_for_input(user_input)
         print(f"\nOutput:\n{output}\n")
