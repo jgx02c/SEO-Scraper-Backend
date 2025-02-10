@@ -95,13 +95,28 @@ def health_check():
 @app.route('/get_business_by_id/<business_id>', methods=['GET'])
 def get_business_by_id(business_id):
     try:
-        business = business_collection.find_one({"business_id": business_id})
+        # Query using string business_id
+        business = business_collection.find_one({"business_id": str(business_id)})
+        
         if business:
-            return jsonify(business), 200
+            # Convert ObjectId to string for JSON serialization
+            business['_id'] = str(business['_id'])
+            
+            # Handle any $numberInt values in the document
+            for review in business.get('customer_reviews', []):
+                if isinstance(review.get('age'), dict) and '$numberInt' in review['age']:
+                    review['age'] = int(review['age']['$numberInt'])
+            
+            return jsonify({
+                "data": business,
+                "timestamp": datetime.utcnow().isoformat()
+            }), 200
+            
         return jsonify({
             "error": "Business not found",
             "timestamp": datetime.utcnow().isoformat()
         }), 404
+        
     except Exception as e:
         logger.error(f"Error fetching business {business_id}: {e}")
         raise
@@ -110,12 +125,33 @@ def get_business_by_id(business_id):
 def get_all_businesses():
     try:
         businesses = list(business_collection.find())
-        if businesses:
-            return jsonify(businesses), 200
+        
+        # Format each business document
+        formatted_businesses = []
+        for business in businesses:
+            # Convert ObjectId to string
+            business['_id'] = str(business['_id'])
+            
+            # Handle any $numberInt values in the document
+            for review in business.get('customer_reviews', []):
+                if isinstance(review.get('age'), dict) and '$numberInt' in review['age']:
+                    review['age'] = int(review['age']['$numberInt'])
+            
+            formatted_businesses.append(business)
+        
+        if formatted_businesses:
+            return jsonify({
+                "data": formatted_businesses,
+                "total_count": len(formatted_businesses),
+                "timestamp": datetime.utcnow().isoformat()
+            }), 200
+            
         return jsonify({
-            "error": "No businesses found",
+            "data": [],
+            "total_count": 0,
             "timestamp": datetime.utcnow().isoformat()
-        }), 404
+        }), 200  # Return 200 with empty array instead of 404
+        
     except Exception as e:
         logger.error(f"Error fetching all businesses: {e}")
         raise
