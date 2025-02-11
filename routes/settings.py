@@ -2,28 +2,29 @@ from flask import Blueprint, jsonify, request
 from datetime import datetime
 import logging
 from db import settings_collection  # Correct import of your MongoDB collection from db.py
+from bson import ObjectId  # For handling ObjectId explicitly
 
 logger = logging.getLogger(__name__)
 
 settings_bp = Blueprint("settings", __name__)
 
+# Hardcoded _id for settings document (replace with actual ObjectId)
+SETTINGS_ID = ObjectId("67aaf294a5502d73f197c464")  # Replace this with a valid ObjectId
+
 @settings_bp.route('/get_settings', methods=['GET'])
 def get_settings():
     try:
-        # Get the latest settings document
-        settings = settings_collection.find_one(
-            {},  # Empty query to get any document
-            sort=[('_id', -1)]  # Get the most recent document
-        )
+        # Get settings document by hardcoded _id
+        settings = settings_collection.find_one({"_id": SETTINGS_ID})
         
         if settings:
-            settings['_id'] = str(settings['_id'])
+            settings['_id'] = str(settings['_id'])  # Ensure _id is serializable to JSON
             return jsonify({
                 "data": settings,
                 "timestamp": datetime.utcnow().isoformat()
             }), 200
         
-        # Return default settings if none exist
+        # Return default settings if the document doesn't exist
         default_settings = {
             "model": "gpt-4o",
             "temperature": 0.7,
@@ -50,7 +51,7 @@ If the user provides a URL, do NOT attempt to fetch the page. Instead, rely only
 Please provide your response in a natural, conversational tone while ensuring all information is accurate and based on the context provided.""",
             "vectorStores": ["leaps"]
         }
-        
+
         return jsonify({
             "data": default_settings,
             "timestamp": datetime.utcnow().isoformat()
@@ -67,12 +68,15 @@ Please provide your response in a natural, conversational tone while ensuring al
 def save_settings():
     try:
         settings_data = request.get_json()
-        
+
         # Add timestamp to settings
         settings_data['updatedAt'] = datetime.utcnow().isoformat()
+
+        # Ensure the document is saved with the hardcoded _id
+        settings_data['_id'] = SETTINGS_ID  # Force the _id to be the same for every save
         
-        # Insert as a new document (keeping history)
-        settings_collection.insert_one(settings_data)
+        # Update the existing settings document with the new data
+        settings_collection.replace_one({"_id": SETTINGS_ID}, settings_data, upsert=True)
         
         return jsonify({
             "message": "Settings saved successfully",

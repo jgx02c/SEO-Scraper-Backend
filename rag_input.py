@@ -15,14 +15,31 @@ from pinecone import Pinecone
 from pinecone import ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
 
+pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
+def initialize_llm(model, temperature, presence_penalty):
+    return ChatOpenAI(
+        model=model,
+        streaming=True,
+        temperature=temperature,
+        presence_penalty=presence_penalty,
+    )
+embeddings = OpenAIEmbeddings(model="text-embedding-ada-002", api_key=os.getenv('OPENAI_API_KEY'))
+index_name = "leaps"
+index = pc.Index(index_name)
+
 def parse_retriever_input(params: Dict):
     last_message_content = params["messages"][-1].content
     if isinstance(last_message_content, list):
         return " ".join([item.get("text", "") for item in last_message_content if item["type"] == "text"])
     return last_message_content
 
-def process_transcription(text_chunk, vector_store, llm, system_prompt):
+def process_transcription(text_chunk, vector_store_name, llm, system_prompt):
     image_message = HumanMessage(content=f"{text_chunk}")
+    
+    # Initialize the PineconeVectorStore using the vector store name (index name)
+    vector_store = PineconeVectorStore.from_pinecone_index(vector_store_name)
+    
+    # Now, you can call 'as_retriever' on the initialized vector store
     retriever = vector_store.as_retriever(search_kwargs={"k": 5})
     
     question_answering_prompt = ChatPromptTemplate.from_messages([
@@ -41,23 +58,18 @@ def process_transcription(text_chunk, vector_store, llm, system_prompt):
         if 'answer' in chunk:
             yield chunk['answer']
 
-def initialize_llm(model, temperature, presence_penalty):
-    return ChatOpenAI(
-        model=model,
-        streaming=True,
-        temperature=temperature,
-        presence_penalty=presence_penalty,
-    )
 
-def generate_insight_prompt(message, vector_store, llm, system_prompt):
+
+def generate_insight_prompt(message, vector_store_name, llm, system_prompt):
     text_chunk = message
     
     try:
-        for result_chunk in process_transcription(text_chunk, vector_store, llm, system_prompt):
+        for result_chunk in process_transcription(text_chunk, vector_store_name, llm, system_prompt):
             yield result_chunk
     except Exception as e:
         print(f"Error during transcription processing: {str(e)}")
         yield "Error: Could not generate insight."
+
 
 def get_insight_for_input(
     message: str,
@@ -70,10 +82,11 @@ def get_insight_for_input(
     # Initialize LLM with settings
     llm = initialize_llm(model, temperature, presence_penalty)
     
+    vector_store_name = vector_store
     # The caller is responsible for creating and passing the vector_store
     result = generate_insight_prompt(
         message,
-        vector_store,  # This should be passed in, not created here
+        vector_store_name,  # This should be passed in, not created here
         llm,
         system_prompt
     )
