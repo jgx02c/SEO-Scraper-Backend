@@ -60,6 +60,8 @@ try:
     mongo_client, db = init_mongodb()
     business_collection = db.business
     webpages_collection = db.webpages
+    chat_collection = db.chats
+    settings_collection = db.settings   
 except Exception as e:
     logger.error(f"Failed to initialize MongoDB collections: {e}")
     raise
@@ -252,43 +254,173 @@ def handle_generate_insight():
                 "timestamp": datetime.utcnow().isoformat()
             }), 400
 
+        # Get current settings
+        settings = settings_collection.find_one(
+            {},  # Empty query to get any document
+            sort=[('_id', -1)]  # Get the most recent document
+        )
+        
+        if not settings:
+            # Use default settings if none exist
+            settings = {
+                "model": "gpt-4o",
+                "temperature": 0.8,
+                "presence_penalty": 0.6,
+                "vectorStore": "leaps",  # This isn't actually used
+                "prompt": None  # Default to None for system prompt
+            }
+
         # Emit start event
         socketio.emit('insight_start', {
             'timestamp': datetime.utcnow().isoformat()
         })
         
-        insight_generator = get_insight_for_input(message)
+        # Pass settings to get_insight_for_input
+        insight_generator = get_insight_for_input(
+            message,
+            model=settings.get('model', 'gpt-4o'),
+            temperature=float(settings.get('temperature', 0.8)),
+            presence_penalty=float(settings.get('presence_penalty', 0.6)),
+            vector_store="leaps",  # Hardcoded since we only use "leaps"
+            system_prompt=settings.get('prompt')
+        )
+        
         insight_chunks = []
         
         # Process generator in chunks
-        try:
-            for insight_chunk in insight_generator:
-                if insight_chunk:
-                    insight_chunks.append(insight_chunk)
-                    socketio.emit('insight_data', {
-                        'text': insight_chunk,
-                        'timestamp': datetime.utcnow().isoformat()
-                    })
-        except Exception as e:
-            logger.error(f"Error generating insight chunks: {e}")
-            socketio.emit('insight_error', {
-                'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
-            })
-            return str(e), 500
-
+        for insight_chunk in insight_generator:
+            if insight_chunk:
+                insight_chunks.append(insight_chunk)
+                socketio.emit('insight_data', {
+                    'text': insight_chunk,
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+        
         full_insight = ''.join(insight_chunks)
         socketio.emit('insight_finished', {
             'timestamp': datetime.utcnow().isoformat()
         })
         
         return full_insight, 200, {'Content-Type': 'text/plain'}
+        
     except Exception as e:
         logger.error(f"Error in generate_insight: {e}")
         socketio.emit('insight_error', {
             'error': str(e),
             'timestamp': datetime.utcnow().isoformat()
         })
+        raise
+
+# Chat endpoints
+@app.route('/get_conversations', methods=['GET'])
+def get_conversations():
+    try:
+        conversations = list(chat_collection.find().sort('createdAt', -1))
+        
+        # Format conversations for JSON response
+        formatted_conversations = []
+        for conv in conversations:
+            conv['_id'] = str(conv['_id'])
+            formatted_conversations.append(conv)
+        
+        return jsonify({
+            "data": formatted_conversations,
+            "total_count": len(formatted_conversations),
+            "timestamp": datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching conversations: {e}")
+        raise
+
+@app.route('/save_conversation', methods=['POST'])
+def save_conversation():
+    try:
+        data = request.get_json()
+        conversation_id = data.get('conversationId')
+        messages = data.get('messages', [])
+        
+        if not conversation_id:
+            return jsonify({
+                "error": "No conversation ID provided",
+                "timestamp": datetime.utcnow().isoformat()
+            }), 400
+
+        # Update or insert the conversation
+        chat_collection.update_one(
+            {"id": conversation_id},
+            {
+                "$set": {
+                    "messages": messages,
+                    "lastUpdated": datetime.utcnow().isoformat(),
+                }
+            },
+            upsert=True
+        )
+        
+        return jsonify({
+            "message": "Conversation saved successfully",
+            "timestamp": datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error saving conversation: {e}")
+        raise
+
+# Settings endpoints
+@app.route('/get_settings', methods=['GET'])
+def get_settings():
+    try:
+        # Get the latest settings document
+        settings = settings_collection.find_one(
+            {},  # Empty query to get any document
+            sort=[('_id', -1)]  # Get the most recent document
+        )
+        
+        if settings:
+            settings['_id'] = str(settings['_id'])
+            return jsonify({
+                "data": settings,
+                "timestamp": datetime.utcnow().isoformat()
+            }), 200
+        
+        # Return default settings if none exist
+        default_settings = {
+            "model": "gpt-4",
+            "temperature": 0.7,
+            "presence_penalty": 0.5,
+            "vectorStore": "1",
+            "prompt": "Default prompt",
+            "vectorStores": ["1", "2", "3"]
+        }
+        
+        return jsonify({
+            "data": default_settings,
+            "timestamp": datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching settings: {e}")
+        raise
+
+@app.route('/save_settings', methods=['POST'])
+def save_settings():
+    try:
+        settings_data = request.get_json()
+        
+        # Add timestamp to settings
+        settings_data['updatedAt'] = datetime.utcnow().isoformat()
+        
+        # Insert as a new document (keeping history)
+        settings_collection.insert_one(settings_data)
+        
+        return jsonify({
+            "message": "Settings saved successfully",
+            "timestamp": datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error saving settings: {e}")
         raise
 
 @socketio.on('connect')
