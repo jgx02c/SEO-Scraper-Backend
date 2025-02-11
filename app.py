@@ -1,19 +1,18 @@
-import eventlet
-eventlet.monkey_patch()
-
+import os
+import logging
+from dotenv import load_dotenv
+from datetime import datetime
+from pymongo import MongoClient
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit
-from pymongo import MongoClient
-import os
-from dotenv import load_dotenv
-import logging
-from datetime import datetime
-from bson import ObjectId
-from bson.errors import InvalidId
-from rag_input import get_insight_for_input
-from default_prompts import DEFAULT_SYSTEM_PROMPT
-import json
+
+# Import the blueprints
+from routes.settings import settings_bp  
+from routes.health import health_bp  
+from routes.business import business_bp  
+from routes.pages import pages_bp  
+from routes.insights import insights_bp  
+from routes.conversations import conversations_bp  
 
 # Configure logging
 logging.basicConfig(
@@ -22,49 +21,47 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env
-load_dotenv()
+# Import MongoDB connection setup
+from db import mongo_client, db, business_collection, webpages_collection, chat_collection, settings_collection
 
-# Initialize Flask app first
+# Register blueprints
 app = Flask(__name__)
 CORS(app, 
      origins=os.getenv('CORS_ORIGINS', '*').split(','),
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      supports_credentials=True)
 
-# Initialize SocketIO with Flask app
-socketio = SocketIO(
-    app,
-    cors_allowed_origins=os.getenv('CORS_ORIGINS', '*').split(','),
-    transports=['websocket'],
-    async_mode='eventlet'
-)
-
 # MongoDB connection with error handling
 def init_mongodb():
+    """Initializes MongoDB connection and returns client and db."""
     try:
+        # Connect to MongoDB using the URI from environment variables
         client = MongoClient(
             os.getenv('MONGODB_URI'),
             serverSelectionTimeoutMS=5000  # 5 second timeout
         )
-        # Test the connection
+        
+        # Test connection to MongoDB
         client.server_info()
+        
         db = client.get_database(os.getenv('MONGODB_DB_NAME'))
         logger.info("Successfully connected to MongoDB")
+        
         return client, db
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB: {e}")
-        raise
+        raise  # Reraise exception for upstream handling
 
-try:
-    mongo_client, db = init_mongodb()
-    business_collection = db.business
-    webpages_collection = db.webpages
-    chat_collection = db.chats
-    settings_collection = db.settings   
-except Exception as e:
-    logger.error(f"Failed to initialize MongoDB collections: {e}")
-    raise
+# Initialize MongoDB connection when app starts
+mongo_client, db = init_mongodb()
+
+# Register blueprints
+app.register_blueprint(settings_bp, url_prefix="/settings")
+app.register_blueprint(health_bp, url_prefix="/health") 
+app.register_blueprint(business_bp, url_prefix="/business")  
+app.register_blueprint(pages_bp, url_prefix="/pages")  
+app.register_blueprint(insights_bp, url_prefix="/insights")  
+app.register_blueprint(conversations_bp, url_prefix="/conversations")  
 
 # Error handler for all routes
 @app.errorhandler(Exception)
@@ -74,410 +71,6 @@ def handle_error(error):
         "error": str(error),
         "timestamp": datetime.utcnow().isoformat()
     }), 500
-
-# Health check endpoint
-@app.route('/health', methods=['GET'])
-def health_check():
-    try:
-        # Check MongoDB connection
-        mongo_client.server_info()
-        return jsonify({
-            "status": "healthy",
-            "database": "connected",
-            "timestamp": datetime.utcnow().isoformat()
-        }), 200
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return jsonify({
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        }), 500
-
-@app.route('/get_business_by_id/<business_id>', methods=['GET'])
-def get_business_by_id(business_id):
-    try:
-        # Query using string business_id
-        business = business_collection.find_one({"business_id": str(business_id)})
-        
-        if business:
-            # Convert ObjectId to string for JSON serialization
-            business['_id'] = str(business['_id'])
-            
-            # Handle any $numberInt values in the document
-            for review in business.get('customer_reviews', []):
-                if isinstance(review.get('age'), dict) and '$numberInt' in review['age']:
-                    review['age'] = int(review['age']['$numberInt'])
-            
-            return jsonify({
-                "data": business,
-                "timestamp": datetime.utcnow().isoformat()
-            }), 200
-            
-        return jsonify({
-            "error": "Business not found",
-            "timestamp": datetime.utcnow().isoformat()
-        }), 404
-        
-    except Exception as e:
-        logger.error(f"Error fetching business {business_id}: {e}")
-        raise
-
-@app.route('/get_all_businesses', methods=['GET'])
-def get_all_businesses():
-    try:
-        businesses = list(business_collection.find())
-        
-        # Format each business document
-        formatted_businesses = []
-        for business in businesses:
-            # Convert ObjectId to string
-            business['_id'] = str(business['_id'])
-            
-            # Handle any $numberInt values in the document
-            for review in business.get('customer_reviews', []):
-                if isinstance(review.get('age'), dict) and '$numberInt' in review['age']:
-                    review['age'] = int(review['age']['$numberInt'])
-            
-            formatted_businesses.append(business)
-        
-        if formatted_businesses:
-            return jsonify({
-                "data": formatted_businesses,
-                "total_count": len(formatted_businesses),
-                "timestamp": datetime.utcnow().isoformat()
-            }), 200
-            
-        return jsonify({
-            "data": [],
-            "total_count": 0,
-            "timestamp": datetime.utcnow().isoformat()
-        }), 200  # Return 200 with empty array instead of 404
-        
-    except Exception as e:
-        logger.error(f"Error fetching all businesses: {e}")
-        raise
-
-@app.route('/get_pages_by_business_id/<business_id>', methods=['GET'])
-def get_pages_by_business_id(business_id):
-    try:
-        # Convert business_id to integer
-        business_id_int = int(business_id)
-        
-        # Define the projection to exclude the data field
-        projection = {
-            "data": 0  # 0 means exclude, 1 would mean include
-        }
-        
-        # Query with the correct business_id format and projection
-        query = {"business_id": business_id_int}
-        
-        # Get all pages without the data field
-        pages = list(webpages_collection.find(
-            query, 
-            projection
-        ))
-        
-        # Format the response
-        formatted_pages = []
-        for page_doc in pages:
-            formatted_page = {
-                "filename": page_doc.get("filename"),
-                "admin_Business": page_doc.get("admin_Business"),
-                "business_id": page_doc.get("business_id"),
-                "_id": str(page_doc["_id"])  # Convert ObjectId to string
-            }
-            formatted_pages.append(formatted_page)
-        
-        return jsonify({
-            "data": formatted_pages,
-            "total_count": len(formatted_pages),
-            "timestamp": datetime.utcnow().isoformat()
-        }), 200
-        
-    except ValueError as e:
-        return jsonify({
-            "error": "Invalid business ID",
-            "details": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        }), 400
-    except Exception as e:
-        logger.error(f"Error fetching pages for business {business_id}: {e}")
-        raise
-
-@app.route('/get_page_by_id/<page_id>', methods=['GET'])
-def get_page_by_id(page_id):
-    try:
-        # Convert string ID to MongoDB ObjectId
-        object_id = ObjectId(page_id)
-        
-        # Query using _id instead of page_id
-        page = webpages_collection.find_one({"_id": object_id})
-        
-        if page:
-            # Convert ObjectId to string for JSON serialization
-            page['_id'] = str(page['_id'])
-            
-            # Handle $numberInt in business_id if present
-            if isinstance(page.get('business_id'), dict) and '$numberInt' in page['business_id']:
-                page['business_id'] = int(page['business_id']['$numberInt'])
-            
-            return jsonify({
-                "data": page,
-                "timestamp": datetime.utcnow().isoformat()
-            }), 200
-            
-        return jsonify({
-            "error": "Page not found",
-            "timestamp": datetime.utcnow().isoformat()
-        }), 404
-        
-    except InvalidId as e:
-        return jsonify({
-            "error": "Invalid page ID format",
-            "details": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        }), 400
-    except Exception as e:
-        logger.error(f"Error fetching page {page_id}: {e}")
-        raise
-
-@app.route('/generate_insight', methods=['POST'])
-def handle_generate_insight():
-    try:
-        # Default settings (centralized)
-        DEFAULT_SETTINGS = {
-            "model": "gpt-4o",
-            "temperature": 0.8,
-            "presence_penalty": 0.6,
-            "vectorStore": "leaps",
-            "prompt": DEFAULT_SYSTEM_PROMPT  # Assuming this is defined elsewhere
-        }
-
-        # Get raw message data
-        data = request.get_data(as_text=True)
-        message = data.strip()
-
-        print(f"[INFO] Received message: {message[:100]}...")  # Truncate long messages
-
-        if not message:
-            print("[ERROR] No message provided")
-            return jsonify({
-                "error": "No message provided",
-                "timestamp": datetime.utcnow().isoformat()
-            }), 400
-
-        # Attempt to retrieve settings from database
-        print("[INFO] Retrieving settings from database...")
-        settings = settings_collection.find_one(
-            {},  # Empty query to get any document
-            sort=[('_id', -1)]  # Get the most recent document
-        )
-        
-        # Merge default settings with retrieved settings
-        if settings:
-            print("[INFO] Settings found in database. Merging with defaults...")
-            final_settings = {**DEFAULT_SETTINGS, **settings}
-        else:
-            print("[INFO] No settings found. Using default settings.")
-            final_settings = DEFAULT_SETTINGS
-
-        print("[INFO] Final settings:")
-        print(json.dumps(final_settings, indent=2))
-
-        # Emit start event
-        socketio.emit('insight_start', {
-            'timestamp': datetime.utcnow().isoformat()
-        })
-        
-        # Emit start event
-        socketio.emit('insight_start', {
-            'timestamp': datetime.utcnow().isoformat()
-        })
-        
-        # Pass merged settings to get_insight_for_input
-        insight_generator = get_insight_for_input(
-            message,
-            model=final_settings['model'],
-            temperature=float(final_settings['temperature']),
-            presence_penalty=float(final_settings['presence_penalty']),
-            vector_store=final_settings['vectorStore'],  # Caller will handle vector store initialization
-            system_prompt=final_settings['prompt']
-        )
-        
-        insight_chunks = []
-        
-        # Process generator in chunks
-        print("[INFO] Processing insight generation...")
-        for insight_chunk in insight_generator:
-            if insight_chunk:
-                insight_chunks.append(insight_chunk)
-                socketio.emit('insight_data', {
-                    'text': insight_chunk,
-                    'timestamp': datetime.utcnow().isoformat()
-                })
-        
-        full_insight = ''.join(insight_chunks)
-        print("[INFO] Insight generation completed successfully")
-
-        socketio.emit('insight_finished', {
-            'timestamp': datetime.utcnow().isoformat()
-        })
-        
-        return full_insight, 200, {'Content-Type': 'text/plain'}
-        
-    except Exception as e:
-        error_msg = f"Error in generate_insight: {e}"
-        print(f"[ERROR] {error_msg}")
-        logger.error(error_msg)
-        socketio.emit('insight_error', {
-            'error': str(e),
-            'timestamp': datetime.utcnow().isoformat()
-        })
-        raise
-
-# Chat endpoints
-@app.route('/get_conversations', methods=['GET'])
-def get_conversations():
-    try:
-        conversations = list(chat_collection.find().sort('createdAt', -1))
-        
-        # Format conversations for JSON response
-        formatted_conversations = []
-        for conv in conversations:
-            conv['_id'] = str(conv['_id'])
-            formatted_conversations.append(conv)
-        
-        return jsonify({
-            "data": formatted_conversations,
-            "total_count": len(formatted_conversations),
-            "timestamp": datetime.utcnow().isoformat()
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error fetching conversations: {e}")
-        raise
-
-@app.route('/save_conversation', methods=['POST'])
-def save_conversation():
-    try:
-        data = request.get_json()
-        conversation_id = data.get('conversationId')
-        messages = data.get('messages', [])
-        
-        if not conversation_id:
-            return jsonify({
-                "error": "No conversation ID provided",
-                "timestamp": datetime.utcnow().isoformat()
-            }), 400
-
-        # Update or insert the conversation
-        chat_collection.update_one(
-            {"id": conversation_id},
-            {
-                "$set": {
-                    "messages": messages,
-                    "lastUpdated": datetime.utcnow().isoformat(),
-                }
-            },
-            upsert=True
-        )
-        
-        return jsonify({
-            "message": "Conversation saved successfully",
-            "timestamp": datetime.utcnow().isoformat()
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error saving conversation: {e}")
-        raise
-
-# Settings endpoints
-@app.route('/get_settings', methods=['GET'])
-def get_settings():
-    try:
-        # Get the latest settings document
-        settings = settings_collection.find_one(
-            {},  # Empty query to get any document
-            sort=[('_id', -1)]  # Get the most recent document
-        )
-        
-        if settings:
-            settings['_id'] = str(settings['_id'])
-            return jsonify({
-                "data": settings,
-                "timestamp": datetime.utcnow().isoformat()
-            }), 200
-        
-        # Return default settings if none exist
-        default_settings = {
-            "model": "gpt-4o",
-            "temperature": 0.7,
-            "presence_penalty": 0.6,
-            "vectorStore": "leaps",
-            "prompt": """**Instruction**:  
-
-You are a helpful and knowledgeable SEO analysis assistant. Your goal is to provide clear, conversational explanations based on the HTML content provided. Think of yourself as a friendly expert having a natural conversation.
-
-When responding:
-- Synthesize the information naturally, as if explaining to a colleague
-- Use conversational language while maintaining accuracy
-- Feel free to add relevant examples or analogies when helpful
-- Connect related concepts to provide better context
-- Rephrase technical content in an accessible way
-
-If the user provides a URL, do NOT attempt to fetch the page. Instead, rely only on the given context or metadata.
-
----
-**Context**:  
-{context}
-
-**Response**:  
-Please provide your response in a natural, conversational tone while ensuring all information is accurate and based on the context provided.""",
-            "vectorStores": ["leaps"]
-        }
-        
-        return jsonify({
-            "data": default_settings,
-            "timestamp": datetime.utcnow().isoformat()
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error fetching settings: {e}")
-        raise
-
-@app.route('/save_settings', methods=['POST'])
-def save_settings():
-    try:
-        settings_data = request.get_json()
-        
-        # Add timestamp to settings
-        settings_data['updatedAt'] = datetime.utcnow().isoformat()
-        
-        # Insert as a new document (keeping history)
-        settings_collection.insert_one(settings_data)
-        
-        return jsonify({
-            "message": "Settings saved successfully",
-            "timestamp": datetime.utcnow().isoformat()
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error saving settings: {e}")
-        raise
-
-@socketio.on('connect')
-def handle_connect():
-    logger.info(f"Client connected: {request.sid}")
-    
-@socketio.on('disconnect')
-def handle_disconnect():
-    logger.info(f"Client disconnected: {request.sid}")
-
-@socketio.on_error()
-def handle_socket_error(e):
-    logger.error(f"SocketIO error: {e}")
-    return str(e)
 
 def create_app():
     """Factory function for creating the application instance"""
@@ -489,8 +82,7 @@ if __name__ == '__main__':
     
     logger.info(f"Starting server on port {port} with debug={debug}")
     
-    socketio.run(
-        app,
+    app.run(
         host='0.0.0.0',
         port=port,
         debug=debug,
