@@ -24,4 +24,4 @@ Created by @jgx02
 
 ## Usage
 
-gunicorn -k eventlet app:app
+gunicorn app:app
