@@ -2,7 +2,6 @@
 
 Created by @jgx02
 
-
 ## Installation
 
 1. Clone the repository:
