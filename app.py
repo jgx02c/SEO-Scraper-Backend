@@ -9,13 +9,11 @@ import os
 from dotenv import load_dotenv
 import logging
 from datetime import datetime
-
 from bson import ObjectId
 from bson.errors import InvalidId
-
 from rag_input import get_insight_for_input
-
 from default_prompts import DEFAULT_SYSTEM_PROMPT
+import json
 
 # Configure logging
 logging.basicConfig(
