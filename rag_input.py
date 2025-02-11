@@ -3,29 +3,15 @@ import base64
 import sys
 import re
 import os
+from typing import Dict, Generator
+
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from typing import Dict, Generator
 from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import OpenAIEmbeddings
-from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from pinecone import Pinecone
-from pinecone import ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
-
-pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
-def initialize_llm(model, temperature, presence_penalty):
-    return ChatOpenAI(
-        model=model,
-        streaming=True,
-        temperature=temperature,
-        presence_penalty=presence_penalty,
-    )
-embeddings = OpenAIEmbeddings(model="text-embedding-ada-002", api_key=os.getenv('OPENAI_API_KEY'))
-index_name = "leaps"
-index = pc.Index(index_name)
 
 def parse_retriever_input(params: Dict):
     last_message_content = params["messages"][-1].content
@@ -33,14 +19,9 @@ def parse_retriever_input(params: Dict):
         return " ".join([item.get("text", "") for item in last_message_content if item["type"] == "text"])
     return last_message_content
 
-def process_transcription(text_chunk, vector_store_name, llm, system_prompt):
-    image_message = HumanMessage(content=f"{text_chunk}")
-    
-    # Initialize the PineconeVectorStore using the vector store name (index name)
-    vector_store = PineconeVectorStore.from_pinecone_index(vector_store_name)
-    
-    # Now, you can call 'as_retriever' on the initialized vector store
-    retriever = vector_store.as_retriever(search_kwargs={"k": 5})
+def process_transcription(text_chunk: str, vectordb: PineconeVectorStore, llm: ChatOpenAI, system_prompt: str) -> Generator[str, None, None]:
+    image_message = HumanMessage(content=text_chunk)
+    retriever = vectordb.as_retriever(search_kwargs={"k": 5})
     
     question_answering_prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
@@ -52,43 +33,59 @@ def process_transcription(text_chunk, vector_store_name, llm, system_prompt):
         context=parse_retriever_input | retriever,
     ).assign(answer=document_chain)
     
-    response_stream = retrieval_chain.stream({"messages": [image_message]})
+    try:
+        response_stream = retrieval_chain.stream({"messages": [image_message]})
+        for chunk in response_stream:
+            if 'answer' in chunk:
+                yield chunk['answer']
+    except Exception as e:
+        print(f"Error in process_transcription: {str(e)}")
+        yield f"Error: {str(e)}"
+
+def generate_insight_prompt(message: str, vector_store: str, model: str, temperature: float, 
+                          presence_penalty: float, system_prompt: str) -> Generator[str, None, None]:
+    # Initialize Pinecone
+    pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
     
-    for chunk in response_stream:
-        if 'answer' in chunk:
-            yield chunk['answer']
-
-
-
-def generate_insight_prompt(message, vector_store_name, llm, system_prompt):
-    text_chunk = message
+    # Initialize LLM
+    llm = ChatOpenAI(
+        model=model,
+        streaming=True,
+        temperature=temperature,
+        presence_penalty=presence_penalty,
+    )
+    
+    # Initialize embeddings with hardcoded model
+    embeddings = OpenAIEmbeddings(
+        model="text-embedding-ada-002",
+        api_key=os.getenv('OPENAI_API_KEY')
+    )
+    
+    # Initialize vector store
+    vectordb = PineconeVectorStore.from_existing_index(
+        index_name=vector_store,
+        embedding=embeddings
+    )
     
     try:
-        for result_chunk in process_transcription(text_chunk, vector_store_name, llm, system_prompt):
-            yield result_chunk
+        yield from process_transcription(message, vectordb, llm, system_prompt)
     except Exception as e:
-        print(f"Error during transcription processing: {str(e)}")
+        print(f"Error during insight generation: {str(e)}")
         yield "Error: Could not generate insight."
 
-
-def get_insight_for_input(
-    message: str,
-    model: str,
-    temperature: float,
-    presence_penalty: float,
-    vector_store: str,
-    system_prompt: str
-) -> Generator[str, None, None]:
-    # Initialize LLM with settings
-    llm = initialize_llm(model, temperature, presence_penalty)
-    
-    vector_store_name = vector_store
-    # The caller is responsible for creating and passing the vector_store
+def get_insight_for_input(message: str, vector_store: str, model: str, temperature: float, 
+                         presence_penalty: float, system_prompt: str) -> str:
     result = generate_insight_prompt(
-        message,
-        vector_store_name,  # This should be passed in, not created here
-        llm,
-        system_prompt
+        message=message,
+        vector_store=vector_store,
+        model=model,
+        temperature=temperature,
+        presence_penalty=presence_penalty,
+        system_prompt=system_prompt
     )
-    for chunk in result:
-        yield chunk
+    
+    insights = []
+    for insight in result:
+        insights.append(insight)
+    
+    return " ".join(insights)
