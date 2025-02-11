@@ -21,9 +21,9 @@ def parse_retriever_input(params: Dict):
         return " ".join([item.get("text", "") for item in last_message_content if item["type"] == "text"])
     return last_message_content
 
-def process_transcription(text_chunk, vectordb, llm, system_prompt):
+def process_transcription(text_chunk, vector_store, llm, system_prompt):
     image_message = HumanMessage(content=f"{text_chunk}")
-    retriever = vectordb.as_retriever(search_kwargs={"k": 5})
+    retriever = vector_store.as_retriever(search_kwargs={"k": 5})
     
     question_answering_prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),
@@ -49,11 +49,11 @@ def initialize_llm(model, temperature, presence_penalty):
         presence_penalty=presence_penalty,
     )
 
-def generate_insight_prompt(message, vectordb, llm, system_prompt):
+def generate_insight_prompt(message, vector_store, llm, system_prompt):
     text_chunk = message
     
     try:
-        for result_chunk in process_transcription(text_chunk, vectordb, llm, system_prompt):
+        for result_chunk in process_transcription(text_chunk, vector_store, llm, system_prompt):
             yield result_chunk
     except Exception as e:
         print(f"Error during transcription processing: {str(e)}")
@@ -64,15 +64,16 @@ def get_insight_for_input(
     model: str,
     temperature: float,
     presence_penalty: float,
-    vectordb: PineconeVectorStore,
+    vector_store: str,
     system_prompt: str
 ) -> Generator[str, None, None]:
     # Initialize LLM with settings
     llm = initialize_llm(model, temperature, presence_penalty)
     
+    # The caller is responsible for creating and passing the vector_store
     result = generate_insight_prompt(
         message,
-        vectordb,
+        vector_store,  # This should be passed in, not created here
         llm,
         system_prompt
     )

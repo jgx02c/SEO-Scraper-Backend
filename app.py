@@ -15,6 +15,8 @@ from bson.errors import InvalidId
 
 from rag_input import get_insight_for_input
 
+from default_prompts import DEFAULT_SYSTEM_PROMPT
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -245,49 +247,70 @@ def get_page_by_id(page_id):
 @app.route('/generate_insight', methods=['POST'])
 def handle_generate_insight():
     try:
+        # Default settings (centralized)
+        DEFAULT_SETTINGS = {
+            "model": "gpt-4o",
+            "temperature": 0.8,
+            "presence_penalty": 0.6,
+            "vectorStore": "leaps",
+            "prompt": DEFAULT_SYSTEM_PROMPT  # Assuming this is defined elsewhere
+        }
+
+        # Get raw message data
         data = request.get_data(as_text=True)
         message = data.strip()
 
+        print(f"[INFO] Received message: {message[:100]}...")  # Truncate long messages
+
         if not message:
+            print("[ERROR] No message provided")
             return jsonify({
                 "error": "No message provided",
                 "timestamp": datetime.utcnow().isoformat()
             }), 400
 
-        # Get current settings
+        # Attempt to retrieve settings from database
+        print("[INFO] Retrieving settings from database...")
         settings = settings_collection.find_one(
             {},  # Empty query to get any document
             sort=[('_id', -1)]  # Get the most recent document
         )
         
-        if not settings:
-            # Use default settings if none exist
-            settings = {
-                "model": "gpt-4o",
-                "temperature": 0.8,
-                "presence_penalty": 0.6,
-                "vectorStore": "leaps",  # This isn't actually used
-                "prompt": None  # Default to None for system prompt
-            }
+        # Merge default settings with retrieved settings
+        if settings:
+            print("[INFO] Settings found in database. Merging with defaults...")
+            final_settings = {**DEFAULT_SETTINGS, **settings}
+        else:
+            print("[INFO] No settings found. Using default settings.")
+            final_settings = DEFAULT_SETTINGS
+
+        print("[INFO] Final settings:")
+        print(json.dumps(final_settings, indent=2))
 
         # Emit start event
         socketio.emit('insight_start', {
             'timestamp': datetime.utcnow().isoformat()
         })
         
-        # Pass settings to get_insight_for_input
+        # Emit start event
+        socketio.emit('insight_start', {
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+        # Pass merged settings to get_insight_for_input
         insight_generator = get_insight_for_input(
             message,
-            model=settings.get('model', 'gpt-4o'),
-            temperature=float(settings.get('temperature', 0.8)),
-            presence_penalty=float(settings.get('presence_penalty', 0.6)),
-            vector_store="leaps",  # Hardcoded since we only use "leaps"
-            system_prompt=settings.get('prompt')
+            model=final_settings['model'],
+            temperature=float(final_settings['temperature']),
+            presence_penalty=float(final_settings['presence_penalty']),
+            vector_store=final_settings['vectorStore'],  # Caller will handle vector store initialization
+            system_prompt=final_settings['prompt']
         )
         
         insight_chunks = []
         
         # Process generator in chunks
+        print("[INFO] Processing insight generation...")
         for insight_chunk in insight_generator:
             if insight_chunk:
                 insight_chunks.append(insight_chunk)
@@ -297,6 +320,8 @@ def handle_generate_insight():
                 })
         
         full_insight = ''.join(insight_chunks)
+        print("[INFO] Insight generation completed successfully")
+
         socketio.emit('insight_finished', {
             'timestamp': datetime.utcnow().isoformat()
         })
@@ -304,7 +329,9 @@ def handle_generate_insight():
         return full_insight, 200, {'Content-Type': 'text/plain'}
         
     except Exception as e:
-        logger.error(f"Error in generate_insight: {e}")
+        error_msg = f"Error in generate_insight: {e}"
+        print(f"[ERROR] {error_msg}")
+        logger.error(error_msg)
         socketio.emit('insight_error', {
             'error': str(e),
             'timestamp': datetime.utcnow().isoformat()
