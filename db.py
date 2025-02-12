@@ -31,7 +31,8 @@ try:
     business_collection = db.business
     webpages_collection = db.webpages
     chat_collection = db.chats
-    settings_collection = db.settings   
+    settings_collection = db.settings  
+    report_collection = db.reports 
 except Exception as e:
     logger.error(f"Failed to initialize MongoDB collections: {e}")
     raise
