@@ -13,6 +13,7 @@ from routes.business import business_bp
 from routes.pages import pages_bp  
 from routes.insights import insights_bp  
 from routes.conversations import conversations_bp  
+from routes.reports import report_bp
 
 # Configure logging
 logging.basicConfig(
@@ -62,6 +63,7 @@ app.register_blueprint(business_bp, url_prefix="/business")
 app.register_blueprint(pages_bp, url_prefix="/pages")  
 app.register_blueprint(insights_bp, url_prefix="/insights")  
 app.register_blueprint(conversations_bp, url_prefix="/conversations")  
+app.register_blueprint(report_bp, url_prefix='/report')
 
 # Error handler for all routes
 @app.errorhandler(Exception)
