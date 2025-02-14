@@ -1,50 +1,44 @@
 from fastapi import APIRouter, HTTPException, Request
-from ..controllers.userController import get_user, edit_user, delete_user
-from app.models.userModel import User
+from app.controllers.user_controller import get_user_profile, edit_user, delete_user
+from app.schemas.user_schema import UserCreate, UserResponse  # Use Pydantic schemas
+from app.db.database import get_db
+from app.auth.jwt_handler import get_current_user  # Assuming you have a method to get current user from JWT
 
 router = APIRouter()
 
-@router.get("/get-user", tags=["users"])
-async def get_users_endpoint(request: Request):
-
-    try: 
-        found_users = await get_user()
-        if not found_users:
-            raise HTTPException(status_code=500, detail="Failed to get users")
+# Endpoint to get the current user profile
+@router.get("/get-user", tags=["users"], response_model=UserResponse)
+async def get_users_endpoint(request: Request, current_user: str = Depends(get_current_user)):
+    try:
+        # Get user profile using the current_user (extracted from JWT)
+        found_user = await get_user_profile(current_user)
+        if not found_user:
+            raise HTTPException(status_code=500, detail="Failed to get user")
     except Exception as e:
-            raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-    return {"message": "Users obtained successfully", "users": found_users}
-    
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+    return {"message": "User obtained successfully", "user": found_user}
 
-@router.post("/edit-user", tags=["users"])
-async def edit_user_endpoint(request: Request, user_data: User):
-
-    try: 
-        edited_user = await edit_user(user_data.dict())
+# Endpoint to edit user profile
+@router.post("/edit-user", tags=["users"], response_model=UserResponse)
+async def edit_user_endpoint(request: Request, user_data: UserCreate, current_user: str = Depends(get_current_user)):
+    try:
+        # Edit user profile
+        edited_user = await edit_user(user_data, current_user)
         if not edited_user:
             raise HTTPException(status_code=500, detail="Failed to edit user")
     except Exception as e:
-            raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-    return {"message": "User edited successfully", "users": edited_user}
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+    return {"message": "User edited successfully", "user": edited_user}
 
-
+# Endpoint to delete a user
 @router.post("/delete-user", tags=["users"])
-async def delete_user_endpoint(request: Request, user_data: User):
-
+async def delete_user_endpoint(request: Request, user_data: UserCreate, current_user: str = Depends(get_current_user)):
     try:
-        json_body = await request.json()
-        print("Raw request JSON:", json_body)
-    except Exception as e:
-        print("Failed to read request JSON:", e)
-        raise HTTPException(status_code=400, detail="Invalid JSON format")
-
-    if not json_body:
-        raise HTTPException(status_code=400, detail="Request body is empty")
-
-    try: 
-        deleted_user = await delete_user(json_body)
+        # Call delete_user controller method (passing data from the request)
+        deleted_user = await delete_user(user_data.dict())  # assuming dict() converts Pydantic model to dict
         if not deleted_user:
-            raise HTTPException(status_code=500, detail="Failed to get services")
+            raise HTTPException(status_code=500, detail="Failed to delete user")
     except Exception as e:
-            raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-    return {"message": "User Deleted Successfully!", "users": deleted_user}
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+    return {"message": "User deleted successfully!", "user": deleted_user}

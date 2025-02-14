@@ -1,14 +1,12 @@
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
-from dotenv import load_dotenv
+from pymongo import MongoClient
 
-load_dotenv()  # Load environment variables from .env
+client = MongoClient("mongodb://localhost:27017/")
+db = client["seo_platform"]
+scraped_data_collection = db["scraped_data"]
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://PiclistAccess:4v2XQfs9xLKaP9nf@piclistdatabase.4tprg.mongodb.net/?retryWrites=true&w=majority&appName=PiclistDatabase")
-DATABASE_NAME = "PiclistDatabase"
-
-client = AsyncIOMotorClient(MONGO_URI)
-db = client[DATABASE_NAME]
-
-def get_collection(collection_name: str):
-    return db[collection_name]
+# Example to insert scraped data
+scraped_data_collection.insert_one({
+    "url": "http://example.com",
+    "html_content": "<html>...</html>",
+    "timestamp": datetime.datetime.utcnow()
+})

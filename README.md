@@ -14,7 +14,7 @@ brew services start redis
 redis-cli ping
 
 ## Start Virtural Enviorment
-python -m venv venv
+python3.9 -m venv venv
 
 # Mac
 source venv/bin/activate
