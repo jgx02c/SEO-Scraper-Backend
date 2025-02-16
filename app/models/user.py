@@ -3,6 +3,11 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 
+# app/models/user.py
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+from datetime import datetime
+
 class UserBase(BaseModel):
     email: EmailStr
 
@@ -26,3 +31,10 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordReset(BaseModel):
+    token: str
+    new_password: str
