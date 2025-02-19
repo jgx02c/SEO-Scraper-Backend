@@ -34,6 +34,11 @@ pip freeze > requirements.txt
 ## Starting Fast API Server
 uvicorn app.main:app --reload
 
+## Developement:
+uvicorn app.main:app --reload --workers 4 --loop uvloop --http httptools
+
+## Production
+gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
 
 # app/
 # ├── main.py
