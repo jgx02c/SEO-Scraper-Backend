@@ -1,55 +1,40 @@
-# Use a more complete base image
-FROM python:3.9-bullseye
+FROM --platform=linux/amd64 python:3.9-slim
 
-# Install dependencies
+# Install essential packages
 RUN apt-get update && apt-get install -y \
     wget \
-    gnupg2 \
+    gnupg \
     curl \
     unzip \
-    # Chrome dependencies
-    libasound2 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libgdk-pixbuf2.0-0 \
-    libnspr4 \
-    libnss3 \
-    libxss1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    libpango-1.0-0 \
-    libcairo2 \
-    --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install Chrome
-RUN wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+# Install Chrome using the new recommended way
+RUN wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
     && apt-get update \
-    && apt-get install -y ./google-chrome-stable_current_amd64.deb \
-    && rm google-chrome-stable_current_amd64.deb \
+    && apt-get install -y /tmp/chrome.deb \
+    && rm /tmp/chrome.deb \
     && rm -rf /var/lib/apt/lists/*
 
 # Install ChromeDriver
-RUN CHROME_VERSION=$(google-chrome-stable --version | sed 's/[^0-9]*//g') \
-    && wget https://chromedriver.storage.googleapis.com/$CHROME_VERSION/chromedriver_linux64.zip \
-    && unzip chromedriver_linux64.zip -d /usr/local/bin/ \
-    && rm chromedriver_linux64.zip
+RUN CHROME_VERSION=$(google-chrome-stable --version | awk '{print $3}' | cut -d'.' -f1) && \
+    CHROMEDRIVER_VERSION=$(curl -sS "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}") && \
+    wget -q -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip && \
+    unzip /tmp/chromedriver.zip -d /usr/local/bin/ && \
+    rm /tmp/chromedriver.zip
 
-# Set environment variables
+# Set display port to avoid crash
 ENV DISPLAY=:99
-ENV PATH=$PATH:/usr/local/bin
 
-# Copy and install Python dependencies
+# Copy requirements and install
 COPY requirements.txt /app/
 WORKDIR /app
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your scraper script
+# Copy application code
 COPY . /app
 
-# Set the command to run your scraper
-CMD ["python", "scraper.py"]
+# Expose the port FastAPI runs on
+EXPOSE 8000
+
+# Run FastAPI with uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
