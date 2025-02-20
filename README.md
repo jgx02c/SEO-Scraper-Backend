@@ -35,7 +35,7 @@ pip freeze > requirements.txt
 uvicorn app.main:app --reload
 
 ## Developement:
-uvicorn app.main:app --reload --workers 4 --loop uvloop --http httptools
+uvicorn app.main:app --reload --workers 2 --loop uvloop --http httptools
 
 ## Production
 gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker

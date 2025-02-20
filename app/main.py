@@ -27,9 +27,9 @@ app.add_middleware(
 async def startup_event():
     logger.info("Initializing application...")
     # Create a ThreadPoolExecutor for background tasks
-    app.state.executor = ThreadPoolExecutor(max_workers=4)
+    app.state.executor = ThreadPoolExecutor(max_workers=2)
     app.state.background_tasks = set()
-    logger.info("ThreadPoolExecutor initialized with 4 workers")
+    logger.info("ThreadPoolExecutor initialized with 2 workers")
 
 @app.on_event("shutdown")
 async def shutdown_event():
