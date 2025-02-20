@@ -15,8 +15,8 @@ def _fetch_html_sync(url: str) -> str:
     """Synchronous function to fetch HTML content using Selenium."""
     logger.info(f"Starting HTML fetch for: {url}")
     
-    # Configure Selenium WebDriver
     chrome_options = Options()
+    chrome_options.binary_location = '/usr/bin/chromium'  # Point to Chromium
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
@@ -24,9 +24,10 @@ def _fetch_html_sync(url: str) -> str:
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--disable-logging")
     
-    # Use webdriver-manager to automatically manage the ChromeDriver
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    # Use the system's ChromeDriver
+    driver = webdriver.Chrome(options=chrome_options)
+    
+    # Rest of your code stays the same...
     
     try:
         logger.info(f"Loading page: {url}")
