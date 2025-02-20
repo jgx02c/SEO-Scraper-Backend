@@ -1,4 +1,4 @@
-# app/main.py
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
@@ -26,7 +26,6 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     logger.info("Initializing application...")
-    # Create a ThreadPoolExecutor for background tasks
     app.state.executor = ThreadPoolExecutor(max_workers=2)
     app.state.background_tasks = set()
     logger.info("ThreadPoolExecutor initialized with 2 workers")
@@ -34,9 +33,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down application...")
-    # Clean up executor
     app.state.executor.shutdown(wait=True)
-    # Wait for all background tasks to complete
     for task in app.state.background_tasks:
         if not task.done():
             task.cancel()
@@ -53,7 +50,7 @@ app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(website.router)
 
-@app.get("/main")
+@app.get("/")
 async def root():
     return {"message": "Welcome to Scope Labs API"}
 
