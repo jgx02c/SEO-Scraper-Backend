@@ -2,6 +2,7 @@
 from fastapi import HTTPException, status
 from ..dependencies import db
 from datetime import datetime
+from ..models.user import UserProfile
 
 class UserController:
     @staticmethod
@@ -42,4 +43,25 @@ class UserController:
         return {
             "success": True,
             "message": "Onboarding status updated successfully"
+        }
+
+    @staticmethod
+    async def get_user_profile(user: dict) -> dict:
+        user_data = await db.users.find_one({"email": user["email"]})
+        if not user_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        profile = UserProfile(
+            email=user_data["email"],
+            name=user_data.get("name"),
+            company=user_data.get("company"),
+            role=user_data.get("role")
+        )
+
+        return {
+            "success": True,
+            "profile": profile.dict(exclude_unset=True)
         }

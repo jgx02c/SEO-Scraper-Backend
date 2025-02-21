@@ -3,11 +3,6 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 
-# app/models/user.py
-from pydantic import BaseModel, EmailStr
-from typing import Optional
-from datetime import datetime
-
 class UserBase(BaseModel):
     email: EmailStr
 
@@ -17,6 +12,11 @@ class UserCreate(UserBase):
 class UserLogin(UserBase):
     password: str
 
+class UserProfile(UserBase):
+    name: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
+
 class UserInDB(UserBase):
     hashed_password: str
     created_at: datetime = datetime.utcnow()
@@ -24,6 +24,9 @@ class UserInDB(UserBase):
     website_url: Optional[str] = None
     analysis_status: Optional[str] = None
     reports_generated: bool = False
+    name: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str
