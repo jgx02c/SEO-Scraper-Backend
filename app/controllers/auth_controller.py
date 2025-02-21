@@ -127,3 +127,17 @@ class AuthController:
             "success": True,
             "message": "Password has been reset successfully"
         }
+
+    @staticmethod
+    async def validate_token(user: dict) -> dict:
+        """Validates the current user's token and returns user data"""
+        return {
+            "success": True,
+            "user": {
+                "email": user["email"],
+                "hasCompletedOnboarding": user.get("has_completed_onboarding", False),
+                "name": user.get("name"),
+                "company": user.get("company"),
+                "role": user.get("role")
+            }
+        }
