@@ -1,43 +1,61 @@
 # app/models/user.py
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List
 from datetime import datetime
 
-class UserBase(BaseModel):
+class UserCreate(BaseModel):
+    """User registration model"""
     email: EmailStr
-
-class UserCreate(UserBase):
-    password: str
-
-class UserLogin(UserBase):
-    password: str
-
-class UserProfile(UserBase):
+    password: str = Field(..., min_length=8)
     name: Optional[str] = None
-    company: Optional[str] = None
-    role: Optional[str] = None
 
-class UserInDB(UserBase):
-    hashed_password: str
-    created_at: datetime = datetime.utcnow()
-    has_completed_onboarding: bool = False
-    website_url: Optional[str] = None
-    analysis_status: Optional[str] = None
-    reports_generated: bool = False
-    name: Optional[str] = None
-    company: Optional[str] = None
-    role: Optional[str] = None
+class UserLogin(BaseModel):
+    """User login model"""
+    email: EmailStr
+    password: str
 
 class Token(BaseModel):
+    """Token response model"""
     access_token: str
     token_type: str
 
-class TokenData(BaseModel):
-    email: Optional[str] = None
+class UserResponse(BaseModel):
+    """User data for response"""
+    id: str
+    email: EmailStr
+    name: Optional[str] = None
+    hasCompletedOnboarding: bool = False
+    company: Optional[str] = None
+    role: Optional[str] = None
+    roles: List[str] = ["user"]
+
+class UserProfile(BaseModel):
+    """User profile update model"""
+    email: Optional[EmailStr] = None
+    name: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
+    has_completed_onboarding: Optional[bool] = None
+    website_url: Optional[str] = None
+
+class UserInDB(BaseModel):
+    """User model as stored in database"""
+    id: str
+    email: EmailStr
+    hashed_password: str
+    name: Optional[str] = None
+    has_completed_onboarding: bool = False
+    company: Optional[str] = None
+    role: Optional[str] = None
+    roles: List[str] = ["user"]
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
 class PasswordResetRequest(BaseModel):
+    """Password reset request model"""
     email: EmailStr
 
 class PasswordReset(BaseModel):
+    """Password reset model"""
     token: str
-    new_password: str
+    new_password: str = Field(..., min_length=8)
