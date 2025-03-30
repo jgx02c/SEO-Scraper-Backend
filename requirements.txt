@@ -27,3 +27,5 @@ python-multipart==0.0.6  # For FastAPI file uploads
 b2sdk
 aiohttp
 asyncio
+supabase==2.3.0  # Supabase client
+postgrest==0.13.1  # Required by Supabase

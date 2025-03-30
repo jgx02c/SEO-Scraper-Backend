@@ -3,10 +3,10 @@ from fastapi import HTTPException, status
 from ..models.user import UserCreate, UserLogin, UserInDB, Token, PasswordResetRequest, PasswordReset
 from ..utils.jwt_handler import create_access_token
 from ..utils.security import verify_password, get_password_hash
-from ..database import db
+from ..utils.supabase import create_user, get_user_by_email, update_user
+from ..database import db  # Keep for reports
 from datetime import datetime, timedelta
 import secrets
-from bson import ObjectId
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ class AuthController:
     @staticmethod
     async def signup(user: UserCreate) -> dict:
         """
-        Register a new user
+        Register a new user using Supabase Auth
         
         Args:
             user (UserCreate): User registration data
@@ -28,28 +28,28 @@ class AuthController:
         """
         try:
             # Check if user exists
-            if await db.users.find_one({"email": user.email}):
+            existing_user = await get_user_by_email(user.email)
+            if existing_user:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Email already registered"
                 )
             
-            # Create user
-            user_id = str(ObjectId())
+            # Create user in Supabase Auth
             user_data = UserInDB(
-                id=user_id,
                 email=user.email,
                 hashed_password=get_password_hash(user.password),
                 created_at=datetime.utcnow(),
                 roles=["user"]
             )
             
-            await db.users.insert_one(user_data.dict())
+            # Create user in Supabase
+            new_user = await create_user(user_data.dict())
             
             # Create access token with user ID and roles
             token_data = {
                 "sub": user.email,
-                "user_id": user_id,
+                "user_id": new_user["id"],
                 "roles": ["user"]
             }
             access_token = create_access_token(data=token_data)
@@ -60,7 +60,7 @@ class AuthController:
                 "token": access_token,
                 "token_type": "bearer",
                 "user": {
-                    "id": user_id,
+                    "id": new_user["id"],
                     "email": user.email,
                     "hasCompletedOnboarding": False,
                     "roles": ["user"]
@@ -78,42 +78,46 @@ class AuthController:
     @staticmethod
     async def signin(user: UserLogin) -> dict:
         """
-        Authenticate a user and return a JWT token
+        Sign in user using Supabase Auth
         
         Args:
-            user (UserLogin): User login credentials
+            user (UserLogin): User login data
             
         Returns:
             dict: Response with token and user data
-            
-        Raises:
-            HTTPException: If credentials are invalid
         """
         try:
-            db_user = await db.users.find_one({"email": user.email})
-            if not db_user or not verify_password(user.password, db_user["hashed_password"]):
+            # Get user from Supabase
+            db_user = await get_user_by_email(user.email)
+            if not db_user:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Incorrect email or password"
                 )
             
-            # Create access token with user ID and roles
+            # Verify password
+            if not verify_password(user.password, db_user["hashed_password"]):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Incorrect email or password"
+                )
+            
+            # Create access token
             token_data = {
-                "sub": user.email,
-                "user_id": str(db_user["_id"]),
+                "sub": db_user["email"],
+                "user_id": db_user["id"],
                 "roles": db_user.get("roles", ["user"])
             }
             access_token = create_access_token(data=token_data)
             
-            # Return both token and user data
             return {
                 "success": True,
                 "token": access_token,
                 "token_type": "bearer",
                 "user": {
-                    "id": str(db_user["_id"]),
-                    "email": user.email,
-                    "hasCompletedOnboarding": db_user.get("has_completed_onboarding", False),
+                    "id": db_user["id"],
+                    "email": db_user["email"],
+                    "hasCompletedOnboarding": db_user.get("hasCompletedOnboarding", False),
                     "roles": db_user.get("roles", ["user"])
                 }
             }
@@ -123,13 +127,13 @@ class AuthController:
             logger.error(f"Error in signin: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Authentication error"
+                detail="Error signing in"
             )
 
     @staticmethod
     async def forgot_password(request: PasswordResetRequest) -> dict:
         """
-        Initiate password reset process
+        Initiate password reset process using Supabase Auth
         
         Args:
             request (PasswordResetRequest): Password reset request with email
@@ -138,7 +142,7 @@ class AuthController:
             dict: Response with success status
         """
         try:
-            user = await db.users.find_one({"email": request.email})
+            user = await get_user_by_email(request.email)
             if not user:
                 # Return success even if user doesn't exist for security
                 return {
@@ -150,16 +154,11 @@ class AuthController:
             reset_token = secrets.token_urlsafe(32)
             reset_token_expires = datetime.utcnow() + timedelta(hours=1)
             
-            # Store reset token in database
-            await db.users.update_one(
-                {"email": request.email},
-                {
-                    "$set": {
-                        "reset_token": reset_token,
-                        "reset_token_expires": reset_token_expires
-                    }
-                }
-            )
+            # Store reset token in Supabase
+            await update_user(user["id"], {
+                "reset_token": reset_token,
+                "reset_token_expires": reset_token_expires
+            })
             
             # Here you would typically send an email with the reset link
             # For now, we'll just return the token (in production, send via email)

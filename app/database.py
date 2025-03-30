@@ -6,7 +6,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# Database connection with connection pooling
+# Database connection with connection pooling (for reports only)
 client = AsyncIOMotorClient(
     settings.MONGO_URL,
     maxPoolSize=10,
@@ -23,16 +23,13 @@ def get_current_time():
     return datetime.utcnow()
 
 async def init_db():
-    """Initialize database with required indexes and settings"""
+    """Initialize database with required indexes for reports"""
     try:
-        logger.info("Creating database indexes...")
+        logger.info("Creating database indexes for reports...")
         
-        # Users collection indexes
-        await db.users.create_index("email", unique=True)
-        
-        # Analysis collection indexes
-        await db.analysis.create_index("user_id", unique=True)
-        await db.analysis.create_index([("user_id", 1), ("created_at", -1)])
+        # Reports collection indexes
+        await db.reports.create_index("business_id")
+        await db.reports.create_index([("business_id", 1), ("report_date", -1)])
         
         logger.info("Database indexes created successfully")
     except Exception as e:
