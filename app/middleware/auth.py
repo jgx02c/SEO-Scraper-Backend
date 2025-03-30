@@ -2,10 +2,9 @@
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
 from ..utils.jwt_handler import decode_token
-from ..database import db
+from ..utils.supabase import get_user_by_email
 from jose import JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
-from bson import ObjectId
 import logging
 
 logger = logging.getLogger(__name__)
@@ -70,9 +69,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             if not user_id or not email:
                 raise JWTError("Invalid token payload")
             
-            # Check if the user exists
-            user = await db.users.find_one({"_id": ObjectId(user_id), "email": email})
-            if not user:
+            # Check if the user exists in Supabase
+            user = await get_user_by_email(email)
+            if not user or user["id"] != user_id:
                 raise JWTError("User not found")
             
             # Attach user to request state

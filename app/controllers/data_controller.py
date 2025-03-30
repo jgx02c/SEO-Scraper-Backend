@@ -1,7 +1,7 @@
 # app/controllers/data_controller.py
 from fastapi import HTTPException, status
-from ..database import db
-from app.utils.mongodb import serialize_mongodb_doc
+from ..database import db  # Keep for reports
+from ..utils.supabase import get_analysis_by_user_id, create_analysis, update_analysis
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ class DataController:
     @staticmethod
     async def get_analysis_data(user_id: str) -> dict:
         """
-        Get analysis data for a user
+        Get analysis data for a user from Supabase
         
         Args:
             user_id (str): ID of the user
@@ -21,16 +21,8 @@ class DataController:
             dict: Analysis data
         """
         try:
-            # Get user data
-            user = await db.users.find_one({"_id": user_id})
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, 
-                    detail="User not found"
-                )
-                
-            # Get analysis data
-            analysis_data = await db.analysis.find_one({"user_id": user_id})
+            # Get analysis data from Supabase
+            analysis_data = await get_analysis_by_user_id(user_id)
             
             # If no analysis data exists yet
             if not analysis_data:
@@ -39,21 +31,51 @@ class DataController:
                     "data": None,
                     "message": "No analysis data available"
                 }
-                
-            # Serialize the MongoDB document
-            serialized_data = serialize_mongodb_doc(analysis_data)
             
             return {
                 "success": True,
-                "data": serialized_data
+                "data": analysis_data
             }
-        except HTTPException:
-            raise
         except Exception as e:
             logger.error(f"Error retrieving analysis data: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error retrieving analysis data"
+            )
+    
+    @staticmethod
+    async def update_analysis_data(user_id: str, analysis_data: dict) -> dict:
+        """
+        Update analysis data for a user in Supabase
+        
+        Args:
+            user_id (str): ID of the user
+            analysis_data (dict): Analysis data to update
+            
+        Returns:
+            dict: Updated analysis data
+        """
+        try:
+            # Check if analysis data exists
+            existing_data = await get_analysis_by_user_id(user_id)
+            
+            if existing_data:
+                # Update existing analysis data
+                updated_data = await update_analysis(user_id, analysis_data)
+            else:
+                # Create new analysis data
+                analysis_data["user_id"] = user_id
+                updated_data = await create_analysis(analysis_data)
+            
+            return {
+                "success": True,
+                "data": updated_data
+            }
+        except Exception as e:
+            logger.error(f"Error updating analysis data: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error updating analysis data"
             )
     
     @staticmethod

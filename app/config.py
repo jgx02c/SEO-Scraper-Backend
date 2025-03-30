@@ -5,9 +5,14 @@ from typing import List
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
-    # MongoDB settings
+    # MongoDB settings (for reports only)
     MONGO_URL: str
     MONGO_DB_NAME: str = "scopelabs"
+    
+    # Supabase settings
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
+    SUPABASE_JWT_SECRET: str
     
     # JWT settings
     JWT_SECRET_KEY: str
