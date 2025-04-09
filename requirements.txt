@@ -1,10 +1,10 @@
 # API Requirements
-fastapi==0.104.1
+fastapi==0.110.0  # Latest stable version
 uvicorn==0.24.0
 dnspython==2.4.2
 motor==3.3.2
-pymongo==4.6.1
-python-jose[cryptography]==3.3.0
+pymongo==4.6.3
+python-jose[cryptography]==3.4.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
 pydantic==1.10.13
@@ -14,14 +14,14 @@ email-validator==2.1.0.post1
 selenium==4.28.1
 webdriver-manager==4.0.2
 beautifulsoup4==4.12.2
-requests==2.31.0
+requests==2.32.0
 boto3==1.33.6
 botocore==1.33.6
 
 # Optional: Development Tools
-black==23.11.0  # Code formatting
+black==24.3.0  # Code formatting
 pytest==7.4.3   # Testing
-python-multipart==0.0.6  # For FastAPI file uploads
+python-multipart==0.0.18  # For FastAPI file uploads
 
 # Database
 b2sdk
