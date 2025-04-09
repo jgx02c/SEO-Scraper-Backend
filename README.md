@@ -1,67 +1,136 @@
-# Fast-API Scraper
+# SEO Scraper Backend
 
-Developed by @jgx02c 
+A powerful FastAPI-based backend service for web scraping and SEO analysis. This service provides a robust API for scraping websites, analyzing content, and generating SEO reports.
 
-## Starting Redis Server On Mac
+## Features
 
-brew services start redis
+- 🔐 Secure authentication with JWT and API keys
+- 🌐 Web scraping capabilities with Selenium and BeautifulSoup
+- 📊 SEO analysis and reporting
+- 🗄️ MongoDB and Supabase integration for data storage
+- 🚀 FastAPI for high-performance API endpoints
+- 🐳 Docker support for easy deployment
 
-## Starting Redis Server On Windows
+## Project Structure
 
+```
+app/
+├── main.py              # FastAPI application entry point
+├── config.py            # Configuration settings
+├── dependencies.py      # Dependency injection
+├── controllers/         # Business logic handlers
+│   ├── auth_controller.py
+│   ├── user_controller.py
+│   ├── website_controller.py
+│   └── data_controller.py
+├── models/             # Data models
+│   ├── user.py
+│   └── report.py
+├── routes/             # API route definitions
+│   ├── auth.py
+│   ├── user.py
+│   ├── website.py
+│   └── data.py
+├── utils/              # Utility functions
+│   ├── security.py
+│   ├── jwt_handler.py
+│   ├── mongodb.py
+│   └── supabase.py
+└── scrape/             # Web scraping modules
+    ├── crawler.py
+    ├── scraper.py
+    ├── cleaner.py
+    └── generate_report.py
+```
 
+## Prerequisites
 
-## Check to see if Redis is Running
-redis-cli ping
+- Python 3.9+
+- Redis server
+- MongoDB
+- Supabase account
+- Docker (optional)
 
-## Start Virtural Enviorment
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/SEO-Scraper-Backend.git
+cd SEO-Scraper-Backend
+```
+
+2. Create and activate a virtual environment:
+```bash
+# Mac/Linux
 python3.9 -m venv venv
-
-# Mac
 source venv/bin/activate
 
 # Windows
+python3.9 -m venv venv
 venv\Scripts\activate
+```
 
-## Install Rquirements
+3. Install dependencies:
+```bash
 pip install -r requirements.txt
+```
 
-# Deactivate Venv
-deactivate
+4. Set up environment variables:
+Create a `.env` file in the root directory with the following variables:
+```
+MONGODB_URL=your_mongodb_url
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+JWT_SECRET=your_jwt_secret
+API_KEY=your_api_key
+```
 
-# Save Additional Dependencies:
-pip freeze > requirements.txt
+## Running the Application
 
-## Starting Fast API Server
-uvicorn app.main:app --reload
-
-## Developement:
+### Development Mode
+```bash
 uvicorn app.main:app --reload --workers 2 --loop uvloop --http httptools
+```
 
-## Production
+### Production Mode
+```bash
 gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
+```
 
-# app/
-# ├── main.py
-# ├── config.py
-# ├── dependencies.py
-# ├── controllers/
-# │   ├── __init__.py
-# │   ├── auth_controller.py
-# │   ├── user_controller.py
-# │   └── website_controller.py
-# ├── models/
-# │   ├── __init__.py
-# │   └── user.py
-# ├── routes/
-# │   ├── __init__.py
-# │   ├── auth.py
-# │   ├── user.py
-# │   └── website.py
-# └── utils/
-#     ├── __init__.py
-#     └── security.py
+### Using Docker
+```bash
+docker build -t seo-scraper .
+docker run -p 8000:8000 seo-scraper
+```
 
-## Testing Routes
+## API Documentation
 
-API Key: When making requests with an API key, pass it in the X-API-KEY header.
-JWT: When making requests with JWT, pass the token in the Authorization header (Bearer <JWT_TOKEN>)
+Once the server is running, visit:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+## Authentication
+
+The API supports two authentication methods:
+
+1. **API Key Authentication**
+   - Add `X-API-KEY: your_api_key` to request headers
+
+2. **JWT Authentication**
+   - Add `Authorization: Bearer your_jwt_token` to request headers
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Author
+
+- **Joshua Goodman** - [@jgx02c](https://github.com/jgx02c)
