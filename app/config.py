@@ -10,8 +10,7 @@ class Settings(BaseSettings):
     MONGO_DB_NAME: str = "scopelabs"
     
     # Supabase settings
-    SUPABASE_URL: str
-    SUPABASE_KEY: str
+    POSTGRES_URI: str
     SUPABASE_JWT_SECRET: str
     
     # JWT settings
@@ -27,6 +26,13 @@ class Settings(BaseSettings):
     def validate_mongo_url(cls, v):
         if not v.startswith("mongodb+srv://") and not v.startswith("mongodb://"):
             raise ValueError("Invalid MongoDB connection string")
+        return v
+    
+    # Validate PostgreSQL connection string
+    @validator("POSTGRES_URI")
+    def validate_postgres_uri(cls, v):
+        if not v.startswith("postgresql://"):
+            raise ValueError("Invalid PostgreSQL connection string")
         return v
     
     # Validate JWT secret key
