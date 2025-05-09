@@ -6,16 +6,17 @@ import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/website")
+router = APIRouter(prefix="/data", tags=["Data"])
+website_controller = WebsiteController()
 
-@router.post("/analyze")
+@router.post("/analysis/start")
 async def analyze_website(request: Request, data: dict, current_user: dict = Depends(get_current_user)):
     # Start the analysis
-    result = await WebsiteController.start_analysis(current_user, data.get("url"))
+    result = await website_controller.start_analysis(current_user, data.get("url"))
     
     # Create and track the background task
     background_task = asyncio.create_task(
-        WebsiteController.run_analysis_tasks(
+        website_controller.run_analysis_tasks(
             business_id=result["business_id"],
             url=result["url"],
             user_email=current_user["email"]
@@ -27,6 +28,6 @@ async def analyze_website(request: Request, data: dict, current_user: dict = Dep
     
     return result
 
-@router.get("/status")
+@router.get("/analysis/status")
 async def get_analysis_status(current_user: dict = Depends(get_current_user)):
-    return await WebsiteController.get_analysis_status(current_user)
+    return await website_controller.get_analysis_status(current_user)

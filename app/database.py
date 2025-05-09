@@ -1,39 +1,24 @@
-# app/database.py
 from motor.motor_asyncio import AsyncIOMotorClient
 from .config import settings
 import logging
-from datetime import datetime
+from .db.supabase import supabase, admin_supabase
 
 logger = logging.getLogger(__name__)
 
-# Database connection with connection pooling (for reports only)
-client = AsyncIOMotorClient(
-    settings.MONGO_URL,
-    maxPoolSize=10,
-    minPoolSize=1,
-    maxIdleTimeMS=60000,
-    retryWrites=True,
-    serverSelectionTimeoutMS=5000
-)
-db = client[settings.MONGO_DB_NAME]
-
-# Helper functions for database operations
-def get_current_time():
-    """Get current UTC time for database operations"""
-    return datetime.utcnow()
+# Initialize MongoDB client
+mongo_client = AsyncIOMotorClient(settings.MONGODB_URL)
+db = mongo_client[settings.MONGODB_DB_NAME]
 
 async def init_db():
-    """Initialize database with required indexes for reports"""
+    """Initialize database connections"""
     try:
-        logger.info("Creating database indexes for reports...")
+        # Test MongoDB connection
+        await db.command('ping')
+        logger.info("MongoDB connection established")
         
-        # Reports collection indexes
-        await db.reports.create_index("business_id")
-        await db.reports.create_index([("business_id", 1), ("report_date", -1)])
+        # Supabase connection is tested when auth is needed
+        logger.info("Database initialization complete")
         
-        logger.info("Database indexes created successfully")
     except Exception as e:
-        logger.error(f"Error creating database indexes: {e}")
-
-# Attach helper functions to db object
-db.get_current_time = get_current_time
+        logger.error(f"Database initialization error: {e}")
+        raise 

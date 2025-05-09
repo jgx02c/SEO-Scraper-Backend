@@ -1,6 +1,5 @@
 from fastapi import HTTPException, status
-from ..database import db  # Keep for reports
-from ..utils.supabase import create_business, update_business, get_business_by_id, update_user
+from ..database import db, supabase
 from datetime import datetime
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -12,22 +11,28 @@ import logging
 logger = logging.getLogger(__name__)
 
 class WebsiteController:
-    @staticmethod
-    async def run_analysis_tasks(business_id: str, url: str, user_email: str):
+    def __init__(self):
+        self.analysis_collection = db.analysis
+        self.reports_collection = db.reports
+
+    async def run_analysis_tasks(self, analysis_id: str, url: str, user_email: str):
         """Background task to run the analysis"""
         try:
-            logger.info(f"Starting analysis for business_id: {business_id}")
+            logger.info(f"Starting analysis for analysis_id: {analysis_id}")
             
             # Update status to show we're starting the scan
-            await update_business(business_id, {
-                "scan_status": "scanning",
-                "current_step": "Starting website scan",
-                "last_updated": datetime.utcnow()
-            })
+            await self.analysis_collection.update_one(
+                {"_id": analysis_id},
+                {"$set": {
+                    "scan_status": "scanning",
+                    "current_step": "Starting website scan",
+                    "last_updated": datetime.utcnow()
+                }}
+            )
             
             # Run the scan with proper await
             try:
-                scan_result = await complete_scan(business_id, url)
+                scan_result = await complete_scan(analysis_id, url)
                 if not scan_result or not scan_result.get("success"):
                     raise Exception("Scan failed to complete successfully")
             except Exception as scan_error:
@@ -35,50 +40,47 @@ class WebsiteController:
                 raise Exception(f"Scan error: {str(scan_error)}")
             
             # Update status to show we're generating the report
-            await update_business(business_id, {
-                "scan_status": "generating_report",
-                "current_step": "Generating analysis report",
-                "last_updated": datetime.utcnow()
-            })
+            await self.analysis_collection.update_one(
+                {"_id": analysis_id},
+                {"$set": {
+                    "scan_status": "generating_report",
+                    "current_step": "Generating analysis report",
+                    "last_updated": datetime.utcnow()
+                }}
+            )
             
             # Generate report (keep in MongoDB)
-            report_result = await generate_report(business_id)
+            report_result = await generate_report(analysis_id)
             if not report_result or not report_result.get("success"):
                 raise Exception("Report generation failed")
             
             # Update final status
-            await update_business(business_id, {
-                "scan_status": "completed",
-                "current_step": "Analysis complete",
-                "report_generated": True,
-                "last_updated": datetime.utcnow()
-            })
-            
-            # Update user status
-            await update_user(user_email, {
-                "analysis_status": "completed",
-                "last_updated": datetime.utcnow()
-            })
+            await self.analysis_collection.update_one(
+                {"_id": analysis_id},
+                {"$set": {
+                    "scan_status": "completed",
+                    "current_step": "Analysis complete",
+                    "report_generated": True,
+                    "last_updated": datetime.utcnow()
+                }}
+            )
             
         except Exception as e:
             error_message = str(e)
-            logger.error(f"Analysis failed for business_id {business_id}: {error_message}")
+            logger.error(f"Analysis failed for analysis_id {analysis_id}: {error_message}")
             
             # Update error status with detailed message
-            await update_business(business_id, {
-                "scan_status": "error",
-                "current_step": "Error occurred",
-                "error_message": error_message,
-                "last_updated": datetime.utcnow()
-            })
-            
-            await update_user(user_email, {
-                "analysis_status": "error",
-                "last_updated": datetime.utcnow()
-            })
+            await self.analysis_collection.update_one(
+                {"_id": analysis_id},
+                {"$set": {
+                    "scan_status": "error",
+                    "current_step": "Error occurred",
+                    "error_message": error_message,
+                    "last_updated": datetime.utcnow()
+                }}
+            )
 
-    @staticmethod
-    async def start_analysis(user: dict, url: str) -> dict:
+    async def start_analysis(self, user: dict, url: str) -> dict:
         # Validate URL
         try:
             parsed_url = urlparse(url)
@@ -91,12 +93,36 @@ class WebsiteController:
             )
 
         try:
-            # Generate business ID
-            business_id = str(uuid4())
+            # Generate analysis ID
+            analysis_id = str(uuid4())
 
-            # Create business document in Supabase
-            business_doc = {
-                "business_id": business_id,
+            # Check if profile exists
+            profile_check = supabase.table("user_profiles").select("*").eq("id", user["id"]).execute()
+            
+            if not profile_check.data:
+                # No profile exists - return error
+                logger.error(f"No profile found for user {user['id']}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User profile not found. Please contact support."
+                )
+            
+            # Update existing profile with website URL and analysis status
+            profile_response = supabase.table("user_profiles").update({
+                "website_url": url,
+                "analysis_status": "processing",
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("id", user["id"]).execute()
+
+            if not profile_response.data:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to update user profile"
+                )
+
+            # Create analysis document in MongoDB
+            analysis_doc = {
+                "_id": analysis_id,
                 "user_id": user["id"],
                 "url": url,
                 "report_generated": False,
@@ -109,25 +135,26 @@ class WebsiteController:
                 "last_updated": datetime.utcnow()
             }
 
-            # Insert into Business collection in Supabase
-            await create_business(business_doc)
+            # Insert into analysis collection
+            await self.analysis_collection.insert_one(analysis_doc)
 
-            # Update user document in Supabase
-            await update_user(user["id"], {
-                "website_url": url,
-                "analysis_started": datetime.utcnow(),
-                "analysis_status": "processing",
-                "last_updated": datetime.utcnow(),
-                "current_business_id": business_id
-            })
+            # Create and track the background task
+            background_task = asyncio.create_task(
+                self.run_analysis_tasks(
+                    analysis_id=analysis_id,
+                    url=url,
+                    user_email=user["email"]
+                )
+            )
 
-            # Return success with business_id for background task
+            # Return success with analysis_id for background task
             return {
                 "success": True,
                 "message": "Analysis initiated",
                 "url": url,
-                "business_id": business_id,
-                "status": "processing"
+                "analysis_id": analysis_id,
+                "status": "processing",
+                "profile": profile_response.data[0]
             }
 
         except Exception as e:
@@ -137,37 +164,72 @@ class WebsiteController:
                 detail=f"Failed to initialize analysis: {str(e)}"
             )
 
-    @staticmethod
-    async def get_analysis_status(user: dict) -> dict:
+    async def get_analysis_status(self, user: dict) -> dict:
         try:
-            business_id = user.get("current_business_id")
-            if not business_id:
+            # Get the latest analysis for the user
+            analysis = await self.analysis_collection.find_one(
+                {"user_id": user["id"]},
+                sort=[("created_at", -1)]
+            )
+
+            if not analysis:
                 return {
                     "success": True,
                     "status": "not_started",
                 }
 
-            business_info = await get_business_by_id(business_id)
-            if not business_info:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Business information not found"
-                )
-
             return {
                 "success": True,
-                "status": business_info["scan_status"],
-                "current_step": business_info["current_step"],
-                "pages_scanned": business_info["pages_scanned"],
-                "total_pages": business_info["total_pages"],
-                "report_generated": business_info["report_generated"]
+                "status": analysis["scan_status"],
+                "current_step": analysis["current_step"],
+                "pages_scanned": analysis["pages_scanned"],
+                "total_pages": analysis["total_pages"],
+                "report_generated": analysis["report_generated"]
             }
 
-        except HTTPException:
-            raise
         except Exception as e:
             logger.error(f"Error getting analysis status: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Error retrieving analysis status"
+            )
+
+    async def get_analysis_report(self, analysis_id: str, user: dict) -> dict:
+        try:
+            # Get the analysis document
+            analysis = await self.analysis_collection.find_one({"_id": analysis_id})
+            if not analysis:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Analysis not found"
+                )
+
+            # Verify user owns this analysis
+            if analysis["user_id"] != user["id"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not authorized to access this analysis"
+                )
+
+            # Get the report
+            report = await self.reports_collection.find_one({"analysis_id": analysis_id})
+            if not report:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Report not found"
+                )
+
+            return {
+                "success": True,
+                "analysis": analysis,
+                "report": report
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting analysis report: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error retrieving analysis report"
             )

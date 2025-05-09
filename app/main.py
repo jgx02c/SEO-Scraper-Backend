@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
-from .routes import auth, user, website, data
+from .routes import auth, report, website
 from .middleware.auth import AuthMiddleware
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -40,16 +40,6 @@ async def startup_event():
     
     logger.info("Application initialized successfully")
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down application...")
-    app.state.executor.shutdown(wait=True)
-    for task in app.state.background_tasks:
-        if not task.done():
-            task.cancel()
-    await asyncio.gather(*app.state.background_tasks, return_exceptions=True)
-    logger.info("Shutdown complete")
-
 # Function to track background tasks
 def track_background_task(task):
     app.state.background_tasks.add(task)
@@ -57,9 +47,8 @@ def track_background_task(task):
 
 # Include routers
 app.include_router(auth.router, prefix="/api", tags=["Authentication"])
-app.include_router(user.router, prefix="/api", tags=["Users"])
 app.include_router(website.router, prefix="/api", tags=["Website"])
-app.include_router(data.router, prefix="/api", tags=["Data"])
+app.include_router(report.router, prefix="/api", tags=["Data"])
 
 @app.get("/")
 async def root():

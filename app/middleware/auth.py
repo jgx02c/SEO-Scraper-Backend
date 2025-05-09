@@ -1,25 +1,27 @@
 # app/middleware/auth.py
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
-from ..utils.jwt_handler import decode_token
-from ..utils.supabase import get_user_by_email
+from ..database import supabase
 from jose import JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 class AuthMiddleware(BaseHTTPMiddleware):
     """
-    Middleware to handle JWT token verification for protected routes
+    Middleware to handle Supabase token verification for protected routes
     """
+    
+    def __init__(self, app):
+        super().__init__(app)
     
     async def dispatch(self, request: Request, call_next):
         # Define the protected route paths
         protected_paths = [
-            "/api/users/",
             "/api/data/",
-            "/api/admin/"
+            "/api/report/"
         ]
         
         # Public paths that don't need authentication
@@ -49,6 +51,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("Authorization")
         
         if not auth_header or not auth_header.startswith("Bearer "):
+            logger.warning("No valid Authorization header found")
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={"detail": "Not authenticated"},
@@ -59,24 +62,28 @@ class AuthMiddleware(BaseHTTPMiddleware):
         token = auth_header.split(" ")[1]
         
         try:
-            # Validate token
-            payload = decode_token(token)
+            # Use Supabase to validate the token and get the user
+            user = supabase.auth.get_user(token)
             
-            # Extract user information
-            user_id = payload.get("user_id")
-            email = payload.get("sub")
+            if not user or not hasattr(user, 'user'):
+                logger.warning("Invalid token or user not found")
+                raise JWTError("Invalid token")
             
-            if not user_id or not email:
-                raise JWTError("Invalid token payload")
+            # Get user profile from Supabase
+            profile_response = supabase.table("user_profiles").select("*").eq("id", user.user.id).execute()
             
-            # Check if the user exists in Supabase
-            user = await get_user_by_email(email)
-            if not user or user["id"] != user_id:
-                raise JWTError("User not found")
+            # We only get the profile, don't try to create or update it
+            if not profile_response.data:
+                logger.warning(f"No profile found for user {user.user.id}")
+                # Continue without a profile - the application should handle this case
             
-            # Attach user to request state
-            request.state.user = user
-            request.state.token_data = payload
+            # Attach user and profile to request state
+            request.state.user = {
+                "id": user.user.id,
+                "email": user.user.email,
+                "roles": user.user.app_metadata.get("roles", ["user"]) if user.user.app_metadata else ["user"],
+                "profile": profile_response.data[0] if profile_response.data and isinstance(profile_response.data, list) else None
+            }
             
             # Continue with the request
             return await call_next(request)

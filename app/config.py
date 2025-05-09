@@ -5,41 +5,23 @@ from typing import List
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
-    # MongoDB settings (for reports only)
-    MONGO_URL: str
-    MONGO_DB_NAME: str = "scopelabs"
+    # MongoDB settings
+    MONGODB_URL: str
+    MONGODB_DB_NAME: str = "scopelabs"
     
     # Supabase settings
-    POSTGRES_URI: str
-    SUPABASE_JWT_SECRET: str
-    
-    # JWT settings
-    JWT_SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    SUPABASE_URL: str
+    SUPABASE_KEY: str  # Anon key
+    SUPABASE_SERVICE_KEY: str  # Service role key
     
     # CORS settings
     CORS_ORIGINS: List[str] = ["http://localhost:3000"]
     
     # Validate MongoDB connection string
-    @validator("MONGO_URL")
+    @validator("MONGODB_URL")
     def validate_mongo_url(cls, v):
         if not v.startswith("mongodb+srv://") and not v.startswith("mongodb://"):
             raise ValueError("Invalid MongoDB connection string")
-        return v
-    
-    # Validate PostgreSQL connection string
-    @validator("POSTGRES_URI")
-    def validate_postgres_uri(cls, v):
-        if not v.startswith("postgresql://"):
-            raise ValueError("Invalid PostgreSQL connection string")
-        return v
-    
-    # Validate JWT secret key
-    @validator("JWT_SECRET_KEY")
-    def validate_jwt_secret(cls, v):
-        if len(v) < 3:
-            raise ValueError("JWT secret key should be at least 32 characters")
         return v
     
     class Config:
