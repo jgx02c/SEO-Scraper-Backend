@@ -15,7 +15,11 @@ class WebsiteAnalysisRequest(BaseModel):
 
 @router.get("/{analysis_id}")
 async def get_report(analysis_id: str, current_user: dict = Depends(get_current_user)):
-    """Get the analysis report for a specific analysis"""
+    """
+    DEPRECATED: Use /api/v2/websites/ endpoints instead.
+    This endpoint is maintained for backward compatibility only.
+    """
+    logger.warning("DEPRECATED: /api/report/{analysis_id} is deprecated. Use /api/v2/websites/ instead.")
     try:
         return await website_controller.get_analysis_report(analysis_id, current_user)
     except Exception as e:
