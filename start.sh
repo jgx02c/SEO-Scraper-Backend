@@ -30,11 +30,21 @@ docker build -t seo-scraper .
 # Check if .env file exists
 if [ ! -f ".env" ]; then
     echo "Error: .env file not found. Please create a .env file with the following required variables:"
-    echo "MONGO_URL=your_mongodb_url"
-    echo "MONGO_DB_NAME=scopelabs"
-    echo "POSTGRES_URI=postgresql://username:password@host:port/database"
-    echo "SUPABASE_JWT_SECRET=your_supabase_jwt_secret"
-    echo "JWT_SECRET_KEY=your_jwt_secret_key"
+    echo "MONGODB_URL=your_mongodb_url"
+    echo "MONGODB_DB_NAME=scopelabs"
+    echo "SUPABASE_URL=your_supabase_url"
+    echo "SUPABASE_KEY=your_supabase_anon_key"
+    echo "SUPABASE_SERVICE_KEY=your_supabase_service_key"
+    exit 1
+fi
+
+# Run database migrations
+echo "Running database migrations..."
+python3.9 scripts/run_migrations.py --execute
+
+# Check if migrations were successful
+if [ $? -ne 0 ]; then
+    echo "Error: Database migrations failed. Please check the logs and fix any issues."
     exit 1
 fi
 

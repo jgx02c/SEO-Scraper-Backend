@@ -50,6 +50,10 @@ app.include_router(auth.router, prefix="/api", tags=["Authentication"])
 app.include_router(website.router, prefix="/api", tags=["Website"])
 app.include_router(report.router, prefix="/api", tags=["Data"])
 
+# Include new V2 routes
+from .routes import websites_v2
+app.include_router(websites_v2.router, prefix="/api/v2", tags=["Websites V2"])
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to Scope Labs API"}
