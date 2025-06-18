@@ -35,8 +35,21 @@ if [ ! -f ".env" ]; then
     echo "SUPABASE_URL=your_supabase_url"
     echo "SUPABASE_KEY=your_supabase_anon_key"
     echo "SUPABASE_SERVICE_KEY=your_supabase_service_key"
+    echo "POSTGRES_URI=your_postgres_connection_string"
     exit 1
 fi
+
+# Source the .env file to load environment variables
+echo "Loading environment variables..."
+source .env
+
+# Verify critical environment variables are loaded
+if [ -z "$POSTGRES_URI" ]; then
+    echo "Error: POSTGRES_URI not loaded from .env file"
+    exit 1
+fi
+
+echo "✅ Environment variables loaded successfully"
 
 # Run database migrations
 echo "Running database migrations..."

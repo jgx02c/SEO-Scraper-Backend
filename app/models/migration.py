@@ -88,8 +88,8 @@ class MigrationPlan(BaseModel):
 class MigrationResult(BaseModel):
     """Result of migration execution"""
     success: bool
-    migrations_applied: List[str] = Field(default_factory=list)
-    migrations_failed: List[str] = Field(default_factory=list)
-    total_time_ms: int = 0
-    errors: List[str] = Field(default_factory=list)
+    total_migrations: int = 0
+    executed_migrations: List[str] = Field(default_factory=list)
+    failed_migrations: List[tuple] = Field(default_factory=list)  # List of (migration_id, error_message) tuples
+    execution_time_ms: int = 0
     warnings: List[str] = Field(default_factory=list) 

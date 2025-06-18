@@ -10,11 +10,15 @@ import os
 import asyncio
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables first
+load_dotenv()
 
 # Add the app directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.db.migration_runner import run_migrations_cli
+from app.db.postgres_migration_runner import run_migrations_cli
 
 # Configure logging
 logging.basicConfig(
@@ -42,18 +46,14 @@ async def main():
         dry_run = True
     
     try:
-        success = await run_migrations_cli(dry_run=dry_run, target=target)
+        await run_migrations_cli(dry_run=dry_run, target=target)
         
-        if success:
-            if dry_run:
-                print("✅ Migration analysis completed successfully")
-                print("💡 Run with --execute to apply migrations")
-            else:
-                print("✅ All migrations applied successfully")
-            return 0
+        if dry_run:
+            print("✅ Migration analysis completed successfully")
+            print("💡 Run with --execute to apply migrations")
         else:
-            print("❌ Migration failed")
-            return 1
+            print("✅ All migrations applied successfully")
+        return 0
             
     except Exception as e:
         print(f"❌ Migration error: {str(e)}")

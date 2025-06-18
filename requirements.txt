@@ -5,6 +5,7 @@ annotated-types==0.7.0
 anyio==3.7.1
 async-timeout==5.0.1
 asyncio==3.4.3
+asyncpg==0.29.0
 attrs==25.3.0
 b2sdk==2.8.0
 bcrypt==4.3.0
