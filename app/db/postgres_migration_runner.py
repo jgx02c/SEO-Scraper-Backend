@@ -127,8 +127,8 @@ class PostgreSQLMigrationRunner:
     
     def _extract_sql_sections(self, content: str) -> Tuple[str, Optional[str]]:
         """Extract UP and DOWN SQL sections from migration content"""
-        # Split by @up and @down markers
-        up_match = re.search(r'--\s*@up\s*\n(.*?)(?=--\s*@down|$)', content, re.DOTALL | re.IGNORECASE)
+        # Split by @up and @down markers, also handle DOWN MIGRATION comments
+        up_match = re.search(r'--\s*@up\s*\n(.*?)(?=--\s*@down|--\s*=+\s*DOWN\s+MIGRATION|$)', content, re.DOTALL | re.IGNORECASE)
         down_match = re.search(r'--\s*@down\s*\n(.*?)$', content, re.DOTALL | re.IGNORECASE)
         
         up_sql = up_match.group(1).strip() if up_match else content.strip()
@@ -300,15 +300,68 @@ class PostgreSQLMigrationRunner:
         """Execute SQL statements"""
         conn = await self.get_connection()
         try:
-            # Split SQL into individual statements and execute them
-            statements = [stmt.strip() for stmt in sql.split(';') if stmt.strip()]
-            
+            # Split SQL into individual statements, handling dollar-quoted strings
+            statements = self._split_sql_statements(sql)
             for statement in statements:
-                if statement:
+                if statement.strip():
                     await conn.execute(statement)
                     
         finally:
             await conn.close()
+    
+    def _split_sql_statements(self, sql: str) -> List[str]:
+        """Split SQL into statements, properly handling dollar-quoted strings"""
+        statements = []
+        current_statement = ""
+        in_dollar_quote = False
+        dollar_tag = ""
+        i = 0
+        
+        while i < len(sql):
+            char = sql[i]
+            
+            # Check for dollar-quoted string start/end
+            if char == '$':
+                # Look for dollar quote tag
+                tag_start = i
+                i += 1
+                while i < len(sql) and (sql[i].isalnum() or sql[i] == '_'):
+                    i += 1
+                if i < len(sql) and sql[i] == '$':
+                    tag = sql[tag_start:i+1]
+                    if not in_dollar_quote:
+                        # Starting a dollar-quoted string
+                        in_dollar_quote = True
+                        dollar_tag = tag
+                        current_statement += sql[tag_start:i+1]
+                    elif tag == dollar_tag:
+                        # Ending the dollar-quoted string
+                        in_dollar_quote = False
+                        dollar_tag = ""
+                        current_statement += sql[tag_start:i+1]
+                    else:
+                        # Different dollar tag, treat as regular content
+                        current_statement += sql[tag_start:i+1]
+                else:
+                    # Not a complete dollar tag, treat as regular content
+                    current_statement += sql[tag_start:i]
+                    i -= 1
+            
+            # Handle statement separation
+            elif char == ';' and not in_dollar_quote:
+                current_statement += char
+                statements.append(current_statement.strip())
+                current_statement = ""
+            else:
+                current_statement += char
+            
+            i += 1
+        
+        # Add any remaining statement
+        if current_statement.strip():
+            statements.append(current_statement.strip())
+        
+        return [stmt for stmt in statements if stmt]
     
     async def _record_migration_start(self, migration: Migration):
         """Record migration start in tracking table"""

@@ -20,8 +20,7 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY")
     SUPABASE_SERVICE_KEY: str = os.getenv("SUPABASE_SERVICE_KEY")
     
-    # PostgreSQL direct connection (for migrations)
-    POSTGRES_URI: str = os.getenv("POSTGRES_URI")
+    POSTGRES_URI = os.getenv("POSTGRES_URI")
     
     # CORS settings (defined as Union to prevent automatic JSON parsing)
     CORS_ORIGINS: Union[str, List[str]] = ["http://localhost:3000"]
