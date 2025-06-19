@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from ..database import supabase
+from ..db.supabase import admin_supabase
 import logging
 from datetime import datetime
 
@@ -61,7 +62,7 @@ async def signup(user: UserCreate):
         }
         
         try:
-            profile_response = supabase.table("user_profiles").insert(profile_data).execute()
+            profile_response = admin_supabase.table("user_profiles").insert(profile_data).execute()
             logger.info(f"Profile created successfully: {profile_response}")
         except Exception as profile_error:
             logger.error(f"Failed to create user profile: {str(profile_error)}")
@@ -109,7 +110,7 @@ async def signin(user: UserLogin):
             )
         
         # Get user profile
-        profile_response = supabase.table("user_profiles").select("*").eq("auth_user_id", auth_response.user.id).execute()
+        profile_response = admin_supabase.table("user_profiles").select("*").eq("auth_user_id", auth_response.user.id).execute()
         
         profile = None
         if profile_response.data and isinstance(profile_response.data, list) and len(profile_response.data) > 0:
@@ -131,7 +132,7 @@ async def signin(user: UserLogin):
                     "analyses_count": 0
                 }
                 
-                create_profile_response = supabase.table("user_profiles").insert(profile_data).execute()
+                create_profile_response = admin_supabase.table("user_profiles").insert(profile_data).execute()
                 if create_profile_response.data:
                     profile = create_profile_response.data[0]
                     logger.info(f"Profile created successfully during signin: {profile}")

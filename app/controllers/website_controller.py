@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 from ..database import db, supabase
+from ..db.supabase import admin_supabase
 from datetime import datetime
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -97,7 +98,7 @@ class WebsiteController:
             analysis_id = str(uuid4())
 
             # Check if profile exists
-            profile_check = supabase.table("user_profiles").select("*").eq("id", user["id"]).execute()
+            profile_check = admin_supabase.table("user_profiles").select("*").eq("auth_user_id", user["id"]).execute()
             
             if not profile_check.data:
                 # No profile exists - return error
@@ -108,11 +109,11 @@ class WebsiteController:
                 )
             
             # Update existing profile with website URL and analysis status
-            profile_response = supabase.table("user_profiles").update({
+            profile_response = admin_supabase.table("user_profiles").update({
                 "website_url": url,
                 "analysis_status": "processing",
                 "updated_at": datetime.utcnow().isoformat()
-            }).eq("id", user["id"]).execute()
+            }).eq("auth_user_id", user["id"]).execute()
 
             if not profile_response.data:
                 raise HTTPException(

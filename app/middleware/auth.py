@@ -2,6 +2,7 @@
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
 from ..database import supabase
+from ..db.supabase import admin_supabase
 from jose import JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
 import logging
@@ -70,7 +71,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 raise JWTError("Invalid token")
             
             # Get user profile from Supabase
-            profile_response = supabase.table("user_profiles").select("*").eq("id", user.user.id).execute()
+            profile_response = admin_supabase.table("user_profiles").select("*").eq("auth_user_id", user.user.id).execute()
             
             # We only get the profile, don't try to create or update it
             if not profile_response.data:
