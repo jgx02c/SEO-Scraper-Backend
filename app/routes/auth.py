@@ -46,8 +46,28 @@ async def signup(user: UserCreate):
                 detail="Failed to create user"
             )
         
-        # We'll create the profile when the user signs in instead
-        # This avoids foreign key constraint issues
+        # Create user profile in the database
+        profile_data = {
+            "auth_user_id": auth_response.user.id,
+            "email": user.email,
+            "name": user.name,
+            "company": user.company,
+            "role": user.role,
+            "has_completed_onboarding": False,
+            "onboarding_step": 0,
+            "plan_type": "free",
+            "subscription_status": "active",
+            "analyses_count": 0
+        }
+        
+        try:
+            profile_response = supabase.table("user_profiles").insert(profile_data).execute()
+            logger.info(f"Profile created successfully: {profile_response}")
+        except Exception as profile_error:
+            logger.error(f"Failed to create user profile: {str(profile_error)}")
+            # If profile creation fails, we should still return success since auth user was created
+            # The profile can be created later when they sign in
+            pass
         
         return {
             "user": auth_response.user,
@@ -89,12 +109,38 @@ async def signin(user: UserLogin):
             )
         
         # Get user profile
-        profile_response = supabase.table("user_profiles").select("*").eq("id", auth_response.user.id).execute()
+        profile_response = supabase.table("user_profiles").select("*").eq("auth_user_id", auth_response.user.id).execute()
         
-        # Just return the profile if it exists, don't try to create one
+        profile = None
+        if profile_response.data and isinstance(profile_response.data, list) and len(profile_response.data) > 0:
+            profile = profile_response.data[0]
+        else:
+            # Create profile if it doesn't exist (for backward compatibility)
+            logger.info(f"No profile found for user {auth_response.user.id}, creating one...")
+            try:
+                profile_data = {
+                    "auth_user_id": auth_response.user.id,
+                    "email": auth_response.user.email,
+                    "name": auth_response.user.user_metadata.get("name"),
+                    "company": auth_response.user.user_metadata.get("company"),
+                    "role": auth_response.user.user_metadata.get("role"),
+                    "has_completed_onboarding": False,
+                    "onboarding_step": 0,
+                    "plan_type": "free",
+                    "subscription_status": "active",
+                    "analyses_count": 0
+                }
+                
+                create_profile_response = supabase.table("user_profiles").insert(profile_data).execute()
+                if create_profile_response.data:
+                    profile = create_profile_response.data[0]
+                    logger.info(f"Profile created successfully during signin: {profile}")
+            except Exception as profile_error:
+                logger.error(f"Failed to create user profile during signin: {str(profile_error)}")
+        
         response_data = {
             "user": auth_response.user,
-            "profile": profile_response.data[0] if profile_response.data and isinstance(profile_response.data, list) else None,
+            "profile": profile,
             "session": auth_response.session
         }
         

@@ -1,0 +1,520 @@
+{
+  "info": {
+    "name": "SEO Scraper Backend API",
+    "description": "Complete API collection for the SEO Scraper Backend with all endpoints including authentication, website management, snapshots, comparisons, and competitive analysis.",
+    "version": "2.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "description": "Base URL for the API"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "description": "Bearer token for authenticated requests"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "User authentication endpoints for signup, signin, and password management",
+      "item": [
+        {
+          "name": "Sign Up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"securepassword123\",\n    \"name\": \"John Doe\",\n    \"company\": \"Example Corp\",\n    \"role\": \"Marketing Manager\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/signup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "signup"]
+            },
+            "description": "Register a new user with email, password, and optional profile information. This will create both the auth user and user profile automatically."
+          }
+        },
+        {
+          "name": "Sign In",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"securepassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/signin",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "signin"]
+            },
+            "description": "Authenticate user and receive access token. Creates user profile if one doesn't exist (backward compatibility)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.session && response.session.access_token) {",
+                  "        pm.environment.set('auth_token', response.session.access_token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "\"user@example.com\""
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/forgot-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "forgot-password"]
+            },
+            "description": "Request password reset email"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"reset_token_here\",\n    \"new_password\": \"newsecurepassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "reset-password"]
+            },
+            "description": "Reset password with recovery token"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Website Management (V2)",
+      "description": "CRUD operations for managing websites",
+      "item": [
+        {
+          "name": "Create Website",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"My Main Website\",\n    \"base_url\": \"https://example.com\",\n    \"website_type\": \"primary\",\n    \"crawl_frequency_days\": 7,\n    \"max_pages_per_crawl\": 50,\n    \"tags\": [\"ecommerce\", \"main-site\"],\n    \"notes\": \"Primary business website\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", ""]
+            },
+            "description": "Create a new master website record"
+          }
+        },
+        {
+          "name": "List All Websites",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", ""]
+            },
+            "description": "Get all websites for the current user"
+          }
+        },
+        {
+          "name": "List Websites by Type",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/?website_type=primary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", ""],
+              "query": [
+                {
+                  "key": "website_type",
+                  "value": "primary",
+                  "description": "Filter by website type (primary, competitor, reference)"
+                }
+              ]
+            },
+            "description": "Get websites filtered by type"
+          }
+        },
+        {
+          "name": "Get Website by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/:website_id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", ":website_id"],
+              "variable": [
+                {
+                  "key": "website_id",
+                  "value": "website_id_here"
+                }
+              ]
+            },
+            "description": "Get a specific website by ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Snapshot Management",
+      "description": "Create and manage website snapshots (scans)",
+      "item": [
+        {
+          "name": "Create Snapshot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"website_id\": \"website_id_here\",\n    \"max_pages\": 100\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/snapshots",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", "snapshots"]
+            },
+            "description": "Create a new snapshot for a website (triggers crawling)"
+          }
+        },
+        {
+          "name": "List Website Snapshots",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/:website_id/snapshots?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", ":website_id", "snapshots"],
+              "variable": [
+                {
+                  "key": "website_id",
+                  "value": "website_id_here"
+                }
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of snapshots to return (1-50)"
+                }
+              ]
+            },
+            "description": "Get snapshots for a specific website"
+          }
+        },
+        {
+          "name": "Get Snapshot Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/snapshots/:snapshot_id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", "snapshots", ":snapshot_id"],
+              "variable": [
+                {
+                  "key": "snapshot_id",
+                  "value": "snapshot_id_here"
+                }
+              ]
+            },
+            "description": "Get detailed report for a specific snapshot"
+          }
+        },
+        {
+          "name": "Get Snapshot Pages",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/snapshots/:snapshot_id/pages?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", "snapshots", ":snapshot_id", "pages"],
+              "variable": [
+                {
+                  "key": "snapshot_id",
+                  "value": "snapshot_id_here"
+                }
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Number of pages to return (1-100)"
+                }
+              ]
+            },
+            "description": "Get all pages scraped in a specific snapshot"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comparison & Analysis",
+      "description": "Compare snapshots and analyze changes",
+      "item": [
+        {
+          "name": "Compare Snapshots",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"website_id\": \"website_id_here\",\n    \"baseline_snapshot_id\": \"older_snapshot_id\",\n    \"current_snapshot_id\": \"newer_snapshot_id\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/compare",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", "compare"]
+            },
+            "description": "Compare two snapshots to detect changes and improvements"
+          }
+        },
+        {
+          "name": "Get Website Comparisons",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/:website_id/comparisons?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", ":website_id", "comparisons"],
+              "variable": [
+                {
+                  "key": "website_id",
+                  "value": "website_id_here"
+                }
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of comparisons to return (1-50)"
+                }
+              ]
+            },
+            "description": "Get comparison history for a website"
+          }
+        },
+        {
+          "name": "Competitive Analysis",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/:website_id/competitive-analysis",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", ":website_id", "competitive-analysis"],
+              "variable": [
+                {
+                  "key": "website_id",
+                  "value": "website_id_here"
+                }
+              ]
+            },
+            "description": "Analyze a website against all competitors"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Competitor Management",
+      "description": "Manage competitor websites",
+      "item": [
+        {
+          "name": "List Competitors",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/competitors",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", "competitors"]
+            },
+            "description": "Get all competitor websites for the current user"
+          }
+        },
+        {
+          "name": "Add Competitor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Competitor Website\",\n    \"base_url\": \"https://competitor.com\",\n    \"website_type\": \"competitor\",\n    \"crawl_frequency_days\": 14,\n    \"max_pages_per_crawl\": 30,\n    \"tags\": [\"competitor\", \"ecommerce\"],\n    \"notes\": \"Main competitor in our industry\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/competitors",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", "competitors"]
+            },
+            "description": "Add a new competitor website"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "Dashboard and summary data endpoints",
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/websites/dashboard/summary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "websites", "dashboard", "summary"]
+            },
+            "description": "Get summary data for the dashboard (totals, recent snapshots, etc.)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Legacy Endpoints (Deprecated)",
+      "description": "Deprecated endpoints maintained for backward compatibility",
+      "item": [
+        {
+          "name": "Start Analysis (DEPRECATED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"url\": \"https://example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/data/analysis/start",
+              "host": ["{{base_url}}"],
+              "path": ["api", "data", "analysis", "start"]
+            },
+            "description": "DEPRECATED: Use /api/v2/websites/snapshots instead. Start a website analysis."
+          }
+        },
+        {
+          "name": "Get Analysis Status (DEPRECATED)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/data/analysis/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "data", "analysis", "status"]
+            },
+            "description": "DEPRECATED: Use /api/v2/websites/ endpoints instead. Check analysis status."
+          }
+        },
+        {
+          "name": "Get Report (DEPRECATED)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/report/:analysis_id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "report", ":analysis_id"],
+              "variable": [
+                {
+                  "key": "analysis_id",
+                  "value": "analysis_id_here"
+                }
+              ]
+            },
+            "description": "DEPRECATED: Use /api/v2/websites/snapshots/{snapshot_id} instead. Get analysis report."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Utility",
+      "description": "Utility endpoints for testing and health checks",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Basic health check endpoint"
+          }
+        }
+      ]
+    }
+  ]
+} 

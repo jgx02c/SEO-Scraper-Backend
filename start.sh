@@ -65,7 +65,6 @@ fi
 echo "Starting Docker container..."
 docker run -p 8000:8000 \
     --env-file .env \
-    --network host \
     seo-scraper
 
 echo "Server is running at http://localhost:8000" 
