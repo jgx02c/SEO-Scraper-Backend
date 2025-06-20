@@ -14,10 +14,12 @@ from .website_controller import WebsiteController
 from .snapshot_controller import SnapshotController
 from .comparison_controller import ComparisonController
 from .competitor_controller import CompetitorController
+from .scan_controller import ScanController
 
 __all__ = [
     "WebsiteController",
     "SnapshotController", 
     "ComparisonController",
-    "CompetitorController"
+    "CompetitorController",
+    "ScanController"
 ] 
