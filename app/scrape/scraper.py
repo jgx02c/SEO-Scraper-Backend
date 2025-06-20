@@ -1,9 +1,9 @@
 import time
 import asyncio
+import os
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 import logging
 from functools import partial
 
@@ -11,25 +11,85 @@ from functools import partial
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def _get_chromium_driver_path():
+    """Get the path to the system chromium driver."""
+    # Common paths for chromium-driver in Linux/Docker environments
+    possible_paths = [
+        '/usr/bin/chromedriver',           # Most common in Docker
+        '/usr/local/bin/chromedriver',     # Alternative location
+        '/snap/bin/chromium.chromedriver', # Snap package
+        'chromedriver'                     # System PATH
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path) or path == 'chromedriver':
+            logger.info(f"Using chromium driver at: {path}")
+            return path
+    
+    raise Exception("No chromium driver found. Please install chromium-driver package.")
+
 def _fetch_html_sync(url: str) -> str:
     """Synchronous function to fetch HTML content using Selenium."""
     logger.info(f"Starting HTML fetch for: {url}")
     
     chrome_options = Options()
-    chrome_options.binary_location = '/usr/bin/chromium'  # Point to Chromium
+    
+    # Set chromium binary location - works for Docker and local with chromium installed
+    chromium_path = '/usr/bin/chromium'
+    if os.path.exists(chromium_path):
+        chrome_options.binary_location = chromium_path
+    elif os.path.exists('/usr/bin/chromium-browser'):
+        chrome_options.binary_location = '/usr/bin/chromium-browser'
+    
+    # Essential options for headless operation in Docker
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--disable-logging")
+    chrome_options.add_argument("--disable-web-security")
+    chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+    chrome_options.add_argument("--remote-debugging-port=9222")
+    chrome_options.add_argument("--disable-background-timer-throttling")
+    chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+    chrome_options.add_argument("--disable-renderer-backgrounding")
+    chrome_options.add_argument("--disable-ipc-flooding-protection")
     
-    # Use the system's ChromeDriver
-    driver = webdriver.Chrome(options=chrome_options)
+    # Additional Docker-specific options to fix renderer connection issues
+    chrome_options.add_argument("--single-process")
+    chrome_options.add_argument("--disable-setuid-sandbox")
+    chrome_options.add_argument("--disable-background-networking")
+    chrome_options.add_argument("--disable-default-apps")
+    chrome_options.add_argument("--disable-sync")
+    chrome_options.add_argument("--disable-translate")
+    chrome_options.add_argument("--hide-scrollbars")
+    chrome_options.add_argument("--metrics-recording-only")
+    chrome_options.add_argument("--mute-audio")
+    chrome_options.add_argument("--no-first-run")
+    chrome_options.add_argument("--safebrowsing-disable-auto-update")
+    chrome_options.add_argument("--ignore-ssl-errors")
+    chrome_options.add_argument("--ignore-certificate-errors")
+    chrome_options.add_argument("--ignore-certificate-errors-spki-list")
+    chrome_options.add_argument("--user-data-dir=/tmp")
+    chrome_options.add_argument("--data-path=/tmp")
+    chrome_options.add_argument("--homedir=/tmp")
+    chrome_options.add_argument("--disk-cache-dir=/tmp")
     
-    # Rest of your code stays the same...
+    # Set window size for consistent rendering
+    chrome_options.add_argument("--window-size=1920,1080")
     
+    driver = None
     try:
+        # Use system chromium driver instead of ChromeDriverManager
+        driver_path = _get_chromium_driver_path()
+        service = Service(driver_path)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        
+        # Set timeouts
+        driver.set_page_load_timeout(30)
+        driver.implicitly_wait(10)
+        
         logger.info(f"Loading page: {url}")
         driver.get(url)
         
@@ -38,7 +98,7 @@ def _fetch_html_sync(url: str) -> str:
         time.sleep(5)  # Consider replacing with explicit waits if possible
         
         html_content = driver.page_source
-        logger.info(f"Successfully fetched HTML for: {url}")
+        logger.info(f"Successfully fetched HTML for: {url} (length: {len(html_content)})")
         return html_content
         
     except Exception as e:
@@ -46,8 +106,12 @@ def _fetch_html_sync(url: str) -> str:
         return None
         
     finally:
-        logger.info("Closing browser")
-        driver.quit()
+        if driver:
+            try:
+                logger.info("Closing browser")
+                driver.quit()
+            except Exception as e:
+                logger.warning(f"Error closing driver: {e}")
 
 async def fetch_html(url: str) -> str:
     """
