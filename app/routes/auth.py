@@ -6,6 +6,7 @@ from ..database import supabase
 from ..db.supabase import admin_supabase
 import logging
 from datetime import datetime
+from gotrue.errors import AuthApiError
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +94,11 @@ async def signin(user: UserLogin):
             "password": user.password
         })
         
-        logger.info(f"Auth response received: {auth_response}")
+        logger.info(f"Auth response received")
         
+        # Note: Supabase gotrue-py client raises AuthApiError for invalid credentials,
+        # so we handle that in the except block. We shouldn't see these checks trigger
+        # for standard bad password flows.
         if not auth_response.user:
             logger.error("No user found in auth response")
             raise HTTPException(
@@ -145,14 +149,20 @@ async def signin(user: UserLogin):
             "session": auth_response.session
         }
         
-        logger.info(f"Returning response data with session: {auth_response.session}")
+        logger.info(f"Returning response data with session")
         return response_data
         
+    except AuthApiError as e:
+        logger.error(f"Signin error: {e.message}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.message or "Invalid login credentials"
+        )
     except Exception as e:
-        logger.error(f"Signin error: {str(e)}")
+        logger.error(f"A generic error occurred during signin: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="An unexpected error occurred."
         )
 
 @router.post("/forgot-password")

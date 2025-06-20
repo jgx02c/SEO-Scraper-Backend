@@ -12,20 +12,17 @@ logger = logging.getLogger(__name__)
 
 class AuthMiddleware(BaseHTTPMiddleware):
     """
-    Middleware to handle Supabase token verification for protected routes
+    Middleware to handle Supabase token verification.
+    By default, all routes are protected. Publicly accessible routes
+    should be added to the `public_paths` list.
     """
     
     def __init__(self, app):
         super().__init__(app)
     
     async def dispatch(self, request: Request, call_next):
-        # Define the protected route paths
-        protected_paths = [
-            "/api/data/",
-            "/api/report/"
-        ]
-        
-        # Public paths that don't need authentication
+        # Public paths that don't need authentication.
+        # All other routes require authentication by default.
         public_paths = [
             "/api/auth/signin",
             "/api/auth/signup",
@@ -35,19 +32,20 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/openapi.json"
         ]
         
-        # Check if current path needs to be protected
         path = request.url.path
-        requires_auth = any(path.startswith(protected) for protected in protected_paths)
-        is_public = any(path == public for public in public_paths)
         
-        # Allow all OPTIONS requests
+        # Allow all OPTIONS requests to pass through
         if request.method == "OPTIONS":
             return await call_next(request)
         
-        if not requires_auth or is_public:
-            # No authentication needed, proceed to next middleware/route handler
+        # Check if the path is public
+        is_public = any(path == public for public in public_paths)
+        
+        if is_public:
+            # If the path is public, proceed without authentication
             return await call_next(request)
         
+        # For all other paths, authentication is required.
         # Get the authorization header
         auth_header = request.headers.get("Authorization")
         

@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
-from .routes import auth, report, website
+from .routes import auth, report
 from .middleware.auth import AuthMiddleware
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -47,7 +47,6 @@ def track_background_task(task):
 
 # Include routers
 app.include_router(auth.router, prefix="/api", tags=["Authentication"])
-app.include_router(website.router, prefix="/api", tags=["Website"])
 app.include_router(report.router, prefix="/api", tags=["Data"])
 
 # Include new V2 routes

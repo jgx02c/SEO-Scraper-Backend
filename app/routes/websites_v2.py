@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from typing import List, Optional
 from ..controllers.v2 import (
     WebsiteController, SnapshotController, 
-    ComparisonController, CompetitorController
+    ComparisonController, CompetitorController, ScanController
 )
-from ..dependencies import get_current_user
 from ..models.website import (
     Website, WebsiteSnapshot, SnapshotComparison,
     WebsiteCreateRequest, SnapshotCreateRequest, ComparisonRequest,
@@ -12,13 +11,13 @@ from ..models.website import (
 )
 from ..database import db
 import logging
+from pydantic import BaseModel, HttpUrl
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/websites", 
-    tags=["Websites V2"],
-    dependencies=[Depends(get_current_user)]
+    tags=["Websites V2"]
 )
 
 # Initialize controllers
@@ -26,6 +25,42 @@ website_controller = WebsiteController()
 snapshot_controller = SnapshotController()
 comparison_controller = ComparisonController()
 competitor_controller = CompetitorController()
+scan_controller = ScanController()
+
+# ===== SCAN INITIATION =====
+
+class ScanInitiateRequest(BaseModel):
+    url: HttpUrl
+    name: Optional[str] = None
+
+@router.post("/scans/initiate", response_model=WebsiteSnapshot)
+async def initiate_scan(
+    request: Request,
+    scan_request: ScanInitiateRequest
+):
+    """
+    Initiates a scan for a website.
+    This is the primary entry point for starting a new analysis.
+    It will automatically create a 'MAIN' website record if one
+    does not already exist for the user, and then create a new
+    snapshot to start the scan.
+    """
+    try:
+        snapshot = await scan_controller.start_initial_scan(
+            request, 
+            str(scan_request.url),
+            scan_request.name
+        )
+        return snapshot
+    except Exception as e:
+        logger.error(f"Error in initiate_scan route: {str(e)}")
+        # The controller already raises HTTPException, but this is a fallback
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to initiate scan"
+        )
 
 # ===== WEBSITE MANAGEMENT =====
 
