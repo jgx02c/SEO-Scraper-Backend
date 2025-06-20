@@ -466,16 +466,16 @@
             "description": "DEPRECATED: Use /api/v2/websites/snapshots instead. Start a website analysis."
           }
         },
-        {
+                {
           "name": "Get Analysis Status (DEPRECATED)",
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/api/data/analysis/status",
+              "raw": "{{base_url}}/api/v2/websites/snapshots/current/status",
               "host": ["{{base_url}}"],
-              "path": ["api", "data", "analysis", "status"]
+              "path": ["api", "v2", "websites", "snapshots", "current", "status"]
             },
-            "description": "DEPRECATED: Use /api/v2/websites/ endpoints instead. Check analysis status."
+            "description": "DEPRECATED: Use /api/v2/websites/snapshots/current/status for status polling. Check analysis status."
           }
         },
         {

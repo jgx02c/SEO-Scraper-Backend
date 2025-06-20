@@ -5,7 +5,7 @@ Handles snapshot creation, management, and scanning operations.
 Focused on website snapshots without comparison logic.
 """
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Request
 from ...database import db
 from ...models.website import (
     WebsiteSnapshot, PageSnapshot, SnapshotCreateRequest,
@@ -29,22 +29,23 @@ class SnapshotController:
         self.pages_collection = db.page_snapshots
         self.website_controller = WebsiteController()
         
-    async def create_snapshot(self, user_id: str, request: SnapshotCreateRequest) -> WebsiteSnapshot:
+    async def create_snapshot(self, request: Request, create_request: SnapshotCreateRequest) -> WebsiteSnapshot:
         """Create a new snapshot for a website"""
         try:
+            user_id = request.state.user["id"]
             # Get the website record
-            website = await self.website_controller.get_website(user_id, request.website_id)
+            website = await self.website_controller.get_website(request, create_request.website_id)
             
             # Get the next version number
             latest_snapshot = await self.snapshots_collection.find_one(
-                {"website_id": PyObjectId(request.website_id)},
+                {"website_id": PyObjectId(create_request.website_id)},
                 sort=[("version", -1)]
             )
             next_version = (latest_snapshot["version"] + 1) if latest_snapshot else 1
             
             # Create snapshot document
             snapshot_doc = {
-                "website_id": PyObjectId(request.website_id),
+                "website_id": PyObjectId(create_request.website_id),
                 "user_id": user_id,
                 "snapshot_date": datetime.utcnow(),
                 "version": next_version,
@@ -65,9 +66,9 @@ class SnapshotController:
             snapshot_doc["_id"] = result.inserted_id
             
             # Update website's snapshot count
-            await self.website_controller.update_snapshot_count(request.website_id)
+            await self.website_controller.update_snapshot_count(create_request.website_id)
             
-            logger.info(f"Created snapshot v{next_version} for website {request.website_id}")
+            logger.info(f"Created snapshot v{next_version} for website {create_request.website_id}")
             
             # Start the background scan
             asyncio.create_task(self._run_snapshot_scan(str(result.inserted_id)))
@@ -83,11 +84,12 @@ class SnapshotController:
                 detail="Failed to create snapshot"
             )
     
-    async def get_website_snapshots(self, user_id: str, website_id: str, limit: int = 10) -> List[WebsiteSnapshot]:
+    async def get_website_snapshots(self, request: Request, website_id: str, limit: int = 10) -> List[WebsiteSnapshot]:
         """Get snapshots for a website"""
         try:
+            user_id = request.state.user["id"]
             # Verify user owns the website
-            await self.website_controller.get_website(user_id, website_id)
+            await self.website_controller.get_website(request, website_id)
             
             cursor = self.snapshots_collection.find({
                 "website_id": PyObjectId(website_id),
@@ -106,9 +108,10 @@ class SnapshotController:
                 detail="Failed to retrieve snapshots"
             )
     
-    async def get_snapshot(self, user_id: str, snapshot_id: str) -> WebsiteSnapshot:
+    async def get_snapshot(self, request: Request, snapshot_id: str) -> WebsiteSnapshot:
         """Get a specific snapshot"""
         try:
+            user_id = request.state.user["id"]
             snapshot = await self.snapshots_collection.find_one({
                 "_id": PyObjectId(snapshot_id),
                 "user_id": user_id
@@ -131,11 +134,12 @@ class SnapshotController:
                 detail="Failed to retrieve snapshot"
             )
     
-    async def get_snapshot_pages(self, user_id: str, snapshot_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    async def get_snapshot_pages(self, request: Request, snapshot_id: str, limit: int = 50) -> List[Dict[str, Any]]:
         """Get pages for a snapshot"""
         try:
+            user_id = request.state.user["id"]
             # Verify user owns the snapshot
-            await self.get_snapshot(user_id, snapshot_id)
+            await self.get_snapshot(request, snapshot_id)
             
             cursor = self.pages_collection.find({
                 "snapshot_id": PyObjectId(snapshot_id),

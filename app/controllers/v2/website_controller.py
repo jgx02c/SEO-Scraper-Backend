@@ -5,7 +5,7 @@ Handles CRUD operations for master website records.
 Focused on website management without snapshot or comparison logic.
 """
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Request
 from ...database import db
 from ...models.website import (
     Website, WebsiteCreateRequest, WebsiteType, PyObjectId
@@ -23,11 +23,12 @@ class WebsiteController:
     def __init__(self):
         self.websites_collection = db.websites
         
-    async def create_website(self, user_id: str, request: WebsiteCreateRequest) -> Website:
+    async def create_website(self, request: Request, create_request: WebsiteCreateRequest) -> Website:
         """Create a new master website record"""
         try:
+            user_id = request.state.user["id"]
             # Extract domain from URL
-            parsed_url = urlparse(str(request.base_url))
+            parsed_url = urlparse(str(create_request.base_url))
             domain = parsed_url.netloc.replace('www.', '')
             
             # Check if website already exists for this user
@@ -47,13 +48,13 @@ class WebsiteController:
             website_doc = {
                 "user_id": user_id,
                 "domain": domain,
-                "name": request.name,
-                "website_type": request.website_type.value,
-                "base_url": str(request.base_url),
-                "crawl_frequency_days": request.crawl_frequency_days,
-                "max_pages_per_crawl": request.max_pages_per_crawl,
-                "tags": request.tags,
-                "notes": request.notes,
+                "name": create_request.name,
+                "website_type": create_request.website_type.value,
+                "base_url": str(create_request.base_url),
+                "crawl_frequency_days": create_request.crawl_frequency_days,
+                "max_pages_per_crawl": create_request.max_pages_per_crawl,
+                "tags": create_request.tags,
+                "notes": create_request.notes,
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
                 "total_snapshots": 0,
@@ -76,9 +77,10 @@ class WebsiteController:
                 detail="Failed to create website record"
             )
     
-    async def get_user_websites(self, user_id: str, website_type: Optional[WebsiteType] = None) -> List[Website]:
+    async def get_user_websites(self, request: Request, website_type: Optional[WebsiteType] = None) -> List[Website]:
         """Get all websites for a user"""
         try:
+            user_id = request.state.user["id"]
             query = {"user_id": user_id, "is_active": True}
             if website_type:
                 query["website_type"] = website_type.value
@@ -95,9 +97,10 @@ class WebsiteController:
                 detail="Failed to retrieve websites"
             )
     
-    async def get_website(self, user_id: str, website_id: str) -> Website:
+    async def get_website(self, request: Request, website_id: str) -> Website:
         """Get a specific website by ID"""
         try:
+            user_id = request.state.user["id"]
             website = await self.websites_collection.find_one({
                 "_id": PyObjectId(website_id),
                 "user_id": user_id,
@@ -121,11 +124,12 @@ class WebsiteController:
                 detail="Failed to retrieve website"
             )
     
-    async def update_website(self, user_id: str, website_id: str, updates: dict) -> Website:
+    async def update_website(self, request: Request, website_id: str, updates: dict) -> Website:
         """Update a website record"""
         try:
+            user_id = request.state.user["id"]
             # Verify user owns the website
-            await self.get_website(user_id, website_id)
+            await self.get_website(request, website_id)
             
             # Add updated timestamp
             updates["updated_at"] = datetime.utcnow()
@@ -143,7 +147,7 @@ class WebsiteController:
                 )
             
             # Return updated website
-            return await self.get_website(user_id, website_id)
+            return await self.get_website(request, website_id)
             
         except HTTPException:
             raise
@@ -154,11 +158,12 @@ class WebsiteController:
                 detail="Failed to update website"
             )
     
-    async def delete_website(self, user_id: str, website_id: str) -> bool:
+    async def delete_website(self, request: Request, website_id: str) -> bool:
         """Soft delete a website (mark as inactive)"""
         try:
+            user_id = request.state.user["id"]
             # Verify user owns the website
-            await self.get_website(user_id, website_id)
+            await self.get_website(request, website_id)
             
             # Soft delete by marking as inactive
             result = await self.websites_collection.update_one(

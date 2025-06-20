@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from typing import List, Optional
 from ..controllers.v2 import (
     WebsiteController, SnapshotController, 
@@ -10,11 +10,16 @@ from ..models.website import (
     WebsiteCreateRequest, SnapshotCreateRequest, ComparisonRequest,
     WebsiteType, WebsiteListResponse, SnapshotListResponse
 )
+from ..database import db
 import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/websites", tags=["Websites V2"])
+router = APIRouter(
+    prefix="/websites", 
+    tags=["Websites V2"],
+    dependencies=[Depends(get_current_user)]
+)
 
 # Initialize controllers
 website_controller = WebsiteController()
@@ -26,12 +31,13 @@ competitor_controller = CompetitorController()
 
 @router.post("/", response_model=Website)
 async def create_website(
-    request: WebsiteCreateRequest,
-    current_user: dict = Depends(get_current_user)
+    request: Request,
+    create_request: WebsiteCreateRequest
 ):
     """Create a new master website record"""
     try:
-        return await website_controller.create_website(current_user["id"], request)
+        user = request.state.user
+        return await website_controller.create_website(user["id"], create_request)
     except Exception as e:
         logger.error(f"Error in create_website route: {str(e)}")
         raise HTTPException(
@@ -41,12 +47,13 @@ async def create_website(
 
 @router.get("/", response_model=WebsiteListResponse)
 async def list_websites(
-    website_type: Optional[WebsiteType] = Query(None, description="Filter by website type"),
-    current_user: dict = Depends(get_current_user)
+    request: Request,
+    website_type: Optional[WebsiteType] = Query(None, description="Filter by website type")
 ):
     """Get all websites for the current user"""
     try:
-        websites = await website_controller.get_user_websites(current_user["id"], website_type)
+        user = request.state.user
+        websites = await website_controller.get_user_websites(user["id"], website_type)
         return WebsiteListResponse(websites=websites, total=len(websites))
     except Exception as e:
         logger.error(f"Error in list_websites route: {str(e)}")
@@ -57,12 +64,13 @@ async def list_websites(
 
 @router.get("/{website_id}", response_model=Website)
 async def get_website(
-    website_id: str,
-    current_user: dict = Depends(get_current_user)
+    request: Request,
+    website_id: str
 ):
     """Get a specific website by ID"""
     try:
-        return await website_controller.get_website(current_user["id"], website_id)
+        user = request.state.user
+        return await website_controller.get_website(user["id"], website_id)
     except Exception as e:
         logger.error(f"Error in get_website route: {str(e)}")
         raise HTTPException(
@@ -74,12 +82,13 @@ async def get_website(
 
 @router.post("/snapshots", response_model=WebsiteSnapshot)
 async def create_snapshot(
-    request: SnapshotCreateRequest,
-    current_user: dict = Depends(get_current_user)
+    request: Request,
+    create_request: SnapshotCreateRequest
 ):
     """Create a new snapshot for a website"""
     try:
-        return await snapshot_controller.create_snapshot(current_user["id"], request)
+        user = request.state.user
+        return await snapshot_controller.create_snapshot(user["id"], create_request)
     except Exception as e:
         logger.error(f"Error in create_snapshot route: {str(e)}")
         raise HTTPException(
@@ -89,14 +98,15 @@ async def create_snapshot(
 
 @router.get("/{website_id}/snapshots", response_model=SnapshotListResponse)
 async def list_snapshots(
+    request: Request,
     website_id: str,
-    limit: int = Query(10, ge=1, le=50, description="Number of snapshots to return"),
-    current_user: dict = Depends(get_current_user)
+    limit: int = Query(10, ge=1, le=50, description="Number of snapshots to return")
 ):
     """Get snapshots for a website"""
     try:
+        user = request.state.user
         snapshots = await snapshot_controller.get_website_snapshots(
-            current_user["id"], website_id, limit
+            user["id"], website_id, limit
         )
         return SnapshotListResponse(snapshots=snapshots, total=len(snapshots))
     except Exception as e:
@@ -108,12 +118,13 @@ async def list_snapshots(
 
 @router.get("/snapshots/{snapshot_id}", response_model=WebsiteSnapshot)
 async def get_snapshot(
-    snapshot_id: str,
-    current_user: dict = Depends(get_current_user)
+    request: Request,
+    snapshot_id: str
 ):
     """Get a specific snapshot by ID"""
     try:
-        return await snapshot_controller.get_snapshot(current_user["id"], snapshot_id)
+        user = request.state.user
+        return await snapshot_controller.get_snapshot(user["id"], snapshot_id)
     except Exception as e:
         logger.error(f"Error in get_snapshot route: {str(e)}")
         raise HTTPException(
@@ -121,16 +132,76 @@ async def get_snapshot(
             detail="Error retrieving snapshot"
         )
 
+@router.get("/snapshots/current/status")
+async def get_current_snapshot_status(request: Request):
+    """Get the status of the most recent snapshot for the user (for long polling during sign-up)"""
+    try:
+        user = request.state.user
+        # First try to find any in-progress snapshot
+        in_progress_snapshot = await db.website_snapshots.find_one(
+            {
+                "user_id": user["id"],
+                "scan_status": {"$in": ["pending", "crawling", "scanning", "generating_report"]}
+            },
+            sort=[("started_at", -1)]
+        )
+        
+        if in_progress_snapshot:
+            return {
+                "success": True,
+                "status": in_progress_snapshot["scan_status"],
+                "current_step": in_progress_snapshot["current_step"],
+                "pages_discovered": in_progress_snapshot.get("pages_discovered", 0),
+                "pages_scraped": in_progress_snapshot.get("pages_scraped", 0),
+                "pages_failed": in_progress_snapshot.get("pages_failed", 0),
+                "snapshot_id": str(in_progress_snapshot["_id"]),
+                "website_id": str(in_progress_snapshot["website_id"]),
+                "base_url": in_progress_snapshot["base_url"]
+            }
+        
+        # If no in-progress, get the most recent completed snapshot
+        latest_snapshot = await db.website_snapshots.find_one(
+            {"user_id": user["id"]},
+            sort=[("started_at", -1)]
+        )
+        
+        if not latest_snapshot:
+            return {
+                "success": True,
+                "status": "not_started"
+            }
+        
+        return {
+            "success": True,
+            "status": latest_snapshot["scan_status"],
+            "current_step": latest_snapshot["current_step"],
+            "pages_discovered": latest_snapshot.get("pages_discovered", 0),
+            "pages_scraped": latest_snapshot.get("pages_scraped", 0),
+            "pages_failed": latest_snapshot.get("pages_failed", 0),
+            "snapshot_id": str(latest_snapshot["_id"]),
+            "website_id": str(latest_snapshot["website_id"]),
+            "base_url": latest_snapshot["base_url"],
+            "completed_at": latest_snapshot.get("completed_at")
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in get_current_snapshot_status route: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error retrieving snapshot status"
+        )
+
 # ===== COMPARISON & ANALYSIS =====
 
 @router.post("/compare", response_model=SnapshotComparison)
 async def compare_snapshots(
-    request: ComparisonRequest,
-    current_user: dict = Depends(get_current_user)
+    request: Request,
+    comparison_request: ComparisonRequest
 ):
     """Compare two snapshots to detect changes"""
     try:
-        return await comparison_controller.compare_snapshots(current_user["id"], request)
+        user = request.state.user
+        return await comparison_controller.compare_snapshots(user["id"], comparison_request)
     except Exception as e:
         logger.error(f"Error in compare_snapshots route: {str(e)}")
         raise HTTPException(
@@ -141,12 +212,11 @@ async def compare_snapshots(
 # ===== COMPETITOR MANAGEMENT =====
 
 @router.get("/competitors", response_model=WebsiteListResponse)
-async def list_competitors(
-    current_user: dict = Depends(get_current_user)
-):
+async def list_competitors(request: Request):
     """Get all competitor websites for the current user"""
     try:
-        competitors = await competitor_controller.get_competitors(current_user["id"])
+        user = request.state.user
+        competitors = await competitor_controller.get_competitors(user["id"])
         return WebsiteListResponse(websites=competitors, total=len(competitors))
     except Exception as e:
         logger.error(f"Error in list_competitors route: {str(e)}")
@@ -157,12 +227,13 @@ async def list_competitors(
 
 @router.post("/competitors", response_model=Website)
 async def add_competitor(
-    request: WebsiteCreateRequest,
-    current_user: dict = Depends(get_current_user)
+    request: Request,
+    create_request: WebsiteCreateRequest
 ):
     """Add a new competitor website"""
     try:
-        return await competitor_controller.add_competitor(current_user["id"], request)
+        user = request.state.user
+        return await competitor_controller.add_competitor(user["id"], create_request)
     except Exception as e:
         logger.error(f"Error in add_competitor route: {str(e)}")
         raise HTTPException(
@@ -176,13 +247,14 @@ async def add_competitor(
 
 @router.get("/{website_id}/competitive-analysis")
 async def get_competitive_analysis(
-    website_id: str,
-    current_user: dict = Depends(get_current_user)
+    request: Request,
+    website_id: str
 ):
     """Analyze a website against all competitors"""
     try:
+        user = request.state.user
         return await competitor_controller.analyze_against_competitors(
-            current_user["id"], website_id
+            user["id"], website_id
         )
     except Exception as e:
         logger.error(f"Error in get_competitive_analysis route: {str(e)}")
@@ -193,14 +265,15 @@ async def get_competitive_analysis(
 
 @router.get("/{website_id}/comparisons")
 async def get_website_comparisons(
+    request: Request,
     website_id: str,
-    limit: int = Query(10, ge=1, le=50, description="Number of comparisons to return"),
-    current_user: dict = Depends(get_current_user)
+    limit: int = Query(10, ge=1, le=50, description="Number of comparisons to return")
 ):
     """Get comparison history for a website"""
     try:
+        user = request.state.user
         comparisons = await comparison_controller.get_website_comparisons(
-            current_user["id"], website_id, limit
+            user["id"], website_id, limit
         )
         return {"comparisons": comparisons, "total": len(comparisons)}
     except Exception as e:
@@ -212,14 +285,15 @@ async def get_website_comparisons(
 
 @router.get("/snapshots/{snapshot_id}/pages")
 async def get_snapshot_pages(
+    request: Request,
     snapshot_id: str,
-    limit: int = Query(50, ge=1, le=100, description="Number of pages to return"),
-    current_user: dict = Depends(get_current_user)
+    limit: int = Query(50, ge=1, le=100, description="Number of pages to return")
 ):
     """Get pages for a specific snapshot"""
     try:
+        user = request.state.user
         pages = await snapshot_controller.get_snapshot_pages(
-            current_user["id"], snapshot_id, limit
+            user["id"], snapshot_id, limit
         )
         return {"pages": pages, "total": len(pages)}
     except Exception as e:
@@ -230,13 +304,12 @@ async def get_snapshot_pages(
         )
 
 @router.get("/dashboard/summary")
-async def get_dashboard_summary(
-    current_user: dict = Depends(get_current_user)
-):
+async def get_dashboard_summary(request: Request):
     """Get summary data for the dashboard"""
     try:
+        user = request.state.user
         # Get all websites
-        all_websites = await website_controller.get_user_websites(current_user["id"])
+        all_websites = await website_controller.get_user_websites(user["id"])
         
         # Separate by type
         primary_sites = [w for w in all_websites if w.website_type == WebsiteType.PRIMARY]
@@ -246,7 +319,7 @@ async def get_dashboard_summary(
         recent_snapshots = []
         for website in primary_sites[:3]:  # Limit to top 3 for performance
             snapshots = await snapshot_controller.get_website_snapshots(
-                current_user["id"], str(website.id), limit=1
+                user["id"], str(website.id), limit=1
             )
             if snapshots:
                 recent_snapshots.extend(snapshots)

@@ -56,28 +56,25 @@ def _fetch_html_sync(url: str) -> str:
     chrome_options.add_argument("--disable-renderer-backgrounding")
     chrome_options.add_argument("--disable-ipc-flooding-protection")
     
-    # Additional Docker-specific options to fix renderer connection issues
-    chrome_options.add_argument("--single-process")
+    # Docker-specific options (removed --single-process as it can cause hanging)
     chrome_options.add_argument("--disable-setuid-sandbox")
     chrome_options.add_argument("--disable-background-networking")
     chrome_options.add_argument("--disable-default-apps")
     chrome_options.add_argument("--disable-sync")
-    chrome_options.add_argument("--disable-translate")
-    chrome_options.add_argument("--hide-scrollbars")
-    chrome_options.add_argument("--metrics-recording-only")
-    chrome_options.add_argument("--mute-audio")
     chrome_options.add_argument("--no-first-run")
-    chrome_options.add_argument("--safebrowsing-disable-auto-update")
     chrome_options.add_argument("--ignore-ssl-errors")
     chrome_options.add_argument("--ignore-certificate-errors")
     chrome_options.add_argument("--ignore-certificate-errors-spki-list")
-    chrome_options.add_argument("--user-data-dir=/tmp")
-    chrome_options.add_argument("--data-path=/tmp")
-    chrome_options.add_argument("--homedir=/tmp")
-    chrome_options.add_argument("--disk-cache-dir=/tmp")
+    chrome_options.add_argument("--user-data-dir=/tmp/chrome-user-data")
+    chrome_options.add_argument("--data-path=/tmp/chrome-data")
+    chrome_options.add_argument("--disk-cache-dir=/tmp/chrome-cache")
     
     # Set window size for consistent rendering
     chrome_options.add_argument("--window-size=1920,1080")
+    
+    # Memory and performance options
+    chrome_options.add_argument("--max_old_space_size=4096")
+    chrome_options.add_argument("--memory-pressure-off")
     
     driver = None
     try:
@@ -86,16 +83,16 @@ def _fetch_html_sync(url: str) -> str:
         service = Service(driver_path)
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
-        # Set timeouts
-        driver.set_page_load_timeout(30)
-        driver.implicitly_wait(10)
+        # Set shorter timeouts to prevent hanging
+        driver.set_page_load_timeout(20)
+        driver.implicitly_wait(5)
         
         logger.info(f"Loading page: {url}")
         driver.get(url)
         
-        # Wait for JavaScript to execute
+        # Wait for JavaScript to execute - reduced from 5 to 3 seconds
         logger.info("Waiting for page load...")
-        time.sleep(5)  # Consider replacing with explicit waits if possible
+        time.sleep(3)
         
         html_content = driver.page_source
         logger.info(f"Successfully fetched HTML for: {url} (length: {len(html_content)})")

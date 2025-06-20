@@ -5,7 +5,7 @@ Handles snapshot comparisons and change analysis.
 Focused on detecting and analyzing differences between snapshots.
 """
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Request
 from ...database import db
 from ...models.website import (
     SnapshotComparison, ComparisonRequest, PyObjectId
@@ -26,22 +26,23 @@ class ComparisonController:
         self.website_controller = WebsiteController()
         self.snapshot_controller = SnapshotController()
         
-    async def compare_snapshots(self, user_id: str, request: ComparisonRequest) -> SnapshotComparison:
+    async def compare_snapshots(self, request: Request, comparison_request: ComparisonRequest) -> SnapshotComparison:
         """Compare two snapshots to detect changes"""
         try:
+            user_id = request.state.user["id"]
             # Verify user owns the website
-            await self.website_controller.get_website(user_id, request.website_id)
+            await self.website_controller.get_website(request, comparison_request.website_id)
             
             # Get both snapshots
-            baseline = await self.snapshot_controller.get_snapshot(user_id, request.baseline_snapshot_id)
-            current = await self.snapshot_controller.get_snapshot(user_id, request.current_snapshot_id)
+            baseline = await self.snapshot_controller.get_snapshot(request, comparison_request.baseline_snapshot_id)
+            current = await self.snapshot_controller.get_snapshot(request, comparison_request.current_snapshot_id)
             
             # Get pages for both snapshots
             baseline_pages = await self.snapshot_controller.get_snapshot_pages(
-                user_id, request.baseline_snapshot_id
+                request, comparison_request.baseline_snapshot_id
             )
             current_pages = await self.snapshot_controller.get_snapshot_pages(
-                user_id, request.current_snapshot_id
+                request, comparison_request.current_snapshot_id
             )
             
             # Create URL maps for comparison
@@ -100,10 +101,10 @@ class ComparisonController:
             
             # Create comparison document
             comparison_doc = {
-                "website_id": PyObjectId(request.website_id),
+                "website_id": PyObjectId(comparison_request.website_id),
                 "user_id": user_id,
-                "baseline_snapshot_id": PyObjectId(request.baseline_snapshot_id),
-                "current_snapshot_id": PyObjectId(request.current_snapshot_id),
+                "baseline_snapshot_id": PyObjectId(comparison_request.baseline_snapshot_id),
+                "current_snapshot_id": PyObjectId(comparison_request.current_snapshot_id),
                 "pages_added": pages_added,
                 "pages_removed": pages_removed,
                 "pages_modified": pages_modified,
@@ -119,7 +120,7 @@ class ComparisonController:
             result = await self.comparisons_collection.insert_one(comparison_doc)
             comparison_doc["_id"] = result.inserted_id
             
-            logger.info(f"Created comparison between snapshots {request.baseline_snapshot_id} and {request.current_snapshot_id}")
+            logger.info(f"Created comparison between snapshots {comparison_request.baseline_snapshot_id} and {comparison_request.current_snapshot_id}")
             
             return SnapshotComparison(**comparison_doc)
             
@@ -132,9 +133,10 @@ class ComparisonController:
                 detail="Failed to compare snapshots"
             )
     
-    async def get_comparison(self, user_id: str, comparison_id: str) -> SnapshotComparison:
+    async def get_comparison(self, request: Request, comparison_id: str) -> SnapshotComparison:
         """Get a specific comparison by ID"""
         try:
+            user_id = request.state.user["id"]
             comparison = await self.comparisons_collection.find_one({
                 "_id": PyObjectId(comparison_id),
                 "user_id": user_id
@@ -157,11 +159,12 @@ class ComparisonController:
                 detail="Failed to retrieve comparison"
             )
     
-    async def get_website_comparisons(self, user_id: str, website_id: str, limit: int = 10) -> List[SnapshotComparison]:
+    async def get_website_comparisons(self, request: Request, website_id: str, limit: int = 10) -> List[SnapshotComparison]:
         """Get comparisons for a website"""
         try:
+            user_id = request.state.user["id"]
             # Verify user owns the website
-            await self.website_controller.get_website(user_id, website_id)
+            await self.website_controller.get_website(request, website_id)
             
             cursor = self.comparisons_collection.find({
                 "website_id": PyObjectId(website_id),
@@ -240,20 +243,21 @@ class ComparisonController:
         
         if changes:
             return {
-                "url": baseline.get("url"),
+                "url": current.get("url"),
                 "changes": changes
             }
         
         return None
     
-    async def get_comparison_summary(self, user_id: str, website_id: str) -> Dict[str, Any]:
+    async def get_comparison_summary(self, request: Request, website_id: str) -> Dict[str, Any]:
         """Get a summary of recent comparisons for a website"""
         try:
+            user_id = request.state.user["id"]
             # Verify user owns the website
-            await self.website_controller.get_website(user_id, website_id)
+            await self.website_controller.get_website(request, website_id)
             
             # Get recent comparisons
-            comparisons = await self.get_website_comparisons(user_id, website_id, limit=5)
+            comparisons = await self.get_website_comparisons(request, website_id, limit=5)
             
             if not comparisons:
                 return {

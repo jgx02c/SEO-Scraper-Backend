@@ -5,7 +5,7 @@ Handles competitor-specific operations and analysis.
 Focused on competitor tracking and competitive analysis.
 """
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Request
 from ...models.website import (
     Website, WebsiteCreateRequest, WebsiteType, CompetitorAnalysis
 )
@@ -26,50 +26,51 @@ class CompetitorController:
         self.snapshot_controller = SnapshotController()
         self.comparison_controller = ComparisonController()
         
-    async def add_competitor(self, user_id: str, request: WebsiteCreateRequest) -> Website:
+    async def add_competitor(self, request: Request, create_request: WebsiteCreateRequest) -> Website:
         """Add a new competitor website"""
         try:
             # Force website type to competitor
-            request.website_type = WebsiteType.COMPETITOR
+            create_request.website_type = WebsiteType.COMPETITOR
             
             # Create the competitor website
-            competitor = await self.website_controller.create_website(user_id, request)
+            competitor = await self.website_controller.create_website(request, create_request)
             
-            logger.info(f"Added competitor {competitor.domain} for user {user_id}")
+            logger.info(f"Added competitor {competitor.domain} for user {request.state.user['id']}")
             return competitor
             
         except Exception as e:
             logger.error(f"Error adding competitor: {str(e)}")
             raise
     
-    async def get_competitors(self, user_id: str) -> List[Website]:
+    async def get_competitors(self, request: Request) -> List[Website]:
         """Get all competitor websites for a user"""
         try:
             return await self.website_controller.get_user_websites(
-                user_id, WebsiteType.COMPETITOR
+                request, WebsiteType.COMPETITOR
             )
         except Exception as e:
             logger.error(f"Error getting competitors: {str(e)}")
             raise
     
-    async def get_primary_websites(self, user_id: str) -> List[Website]:
+    async def get_primary_websites(self, request: Request) -> List[Website]:
         """Get all primary websites for a user"""
         try:
             return await self.website_controller.get_user_websites(
-                user_id, WebsiteType.PRIMARY
+                request, WebsiteType.PRIMARY
             )
         except Exception as e:
             logger.error(f"Error getting primary websites: {str(e)}")
             raise
     
-    async def analyze_against_competitors(self, user_id: str, primary_website_id: str) -> Dict[str, Any]:
+    async def analyze_against_competitors(self, request: Request, primary_website_id: str) -> Dict[str, Any]:
         """Analyze a primary website against all competitors"""
         try:
+            user_id = request.state.user["id"]
             # Get primary website
-            primary_website = await self.website_controller.get_website(user_id, primary_website_id)
+            primary_website = await self.website_controller.get_website(request, primary_website_id)
             
             # Get competitors
-            competitors = await self.get_competitors(user_id)
+            competitors = await self.get_competitors(request)
             
             if not competitors:
                 return {
@@ -82,7 +83,7 @@ class CompetitorController:
             
             # Get latest snapshots for primary website
             primary_snapshots = await self.snapshot_controller.get_website_snapshots(
-                user_id, primary_website_id, limit=1
+                request, primary_website_id, limit=1
             )
             
             if not primary_snapshots:
@@ -101,7 +102,7 @@ class CompetitorController:
             
             for competitor in competitors:
                 competitor_snapshots = await self.snapshot_controller.get_website_snapshots(
-                    user_id, str(competitor.id), limit=1
+                    request, str(competitor.id), limit=1
                 )
                 
                 if competitor_snapshots:
